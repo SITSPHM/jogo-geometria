@@ -15,18 +15,18 @@ const originalQuestionBank = [
 
 const deathMessages = {
     timeout: [
-        "O tempo acabou! Você dormiu na tomada ou o quê? Que lerdo!",
-        "Pensou tanto que o cérebro pifou? O cronômetro te esmagou completamente!",
-        "Muito devagar! Desse jeito a geometria vai te deixar para trás para sempre!"
+        "O tempo acabou! Você dormiu na conta ou o quê? Que lerdo!",
+        "Pensou tanto que o cérebro pifou? Que coisa triste de se ver!",
+        "Muito devagar! Desse jeito tu não vai chegar em nenhum lugar!"
     ],
     wrongAnswer: [
-        "Errou feio, errou rude! Volte para a escola porque a sua resposta foi um desastre!",
+        "Errou feio, presta atenção cara, minha vó é mais esperta!",
         "Sério que você digitou isso? Meu gato andando no teclado responderia melhor!",
-        "Resposta totalmente incorreta! Você claramente não estudou nada."
+        "Resposta totalmente incorreta! Você claramente não escutou nada."
     ],
     bulletHell: [
-        "Que perdedor! Não aguentou o turbilhão geométrico e virou poeira!",
-        "Nossa, que noob! Foi obliterado completamente na arena de formas!",
+        "Que ruim! Não aguentou o jogo mais facil desse tipo!",
+        "Nossa, que horrível! Foi obliterado completamente!",
         "Desistiu de viver? Suas vidas sumiram mais rápido que a minha paciência!"
     ]
 };
