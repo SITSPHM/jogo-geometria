@@ -13,7 +13,6 @@ const originalQuestionBank = [
     { question: "Um prisma que possui todas as suas faces quadradas é chamado de...?", answer: "cubo" }
 ];
 
-// Banco de Falas Variadas para a Tela de Morte (3 para cada tipo)
 const deathMessages = {
     timeout: [
         "O tempo acabou! Você dormiu na tomada ou o quê? Que lerdo!",
@@ -48,7 +47,6 @@ let isPopupActive = false;
 let isHandActive = false;
 let causeOfDeath = "wrongAnswer"; 
 
-// Estado do Minijogo Bullet Hell
 let isBossFightActive = false;
 let bossFightAnimationId = null;
 let currentWave = 1; 
@@ -56,13 +54,11 @@ let bossPhase = 0;
 let bossHp = 100;
 let maxBossHp = 100;
 
-// Mecânica de Invencibilidade
 let isInvincible = false;
 let invincibleTimer = 0;
 const INVINCIBLE_DURATION = 180; 
 let blinkTimer = 0;
 
-// Sistema de Contagem Regressiva Arcade
 let isCountdownActive = false;
 let countdownNumber = 3;
 let countdownTimer = 0;
@@ -71,24 +67,22 @@ let isWaveTransitionActive = false;
 let transitionText = "";
 let transitionTimer = 0;
 
-// Efeitos de Morte e Transição
 let isDyingSequence = false;
 let dyingTimer = 0;
 let bossDyingY = 30;
 let whiteFadeAlpha = 0; 
 let isWhiteFadeActive = false;
 
-// Configuração Arena Canvas
 const canvas = document.getElementById('boss-canvas');
 const ctx = canvas.getContext('2d');
 
-// Entidades do Bullet Hell
 let player = { x: 280, y: 340, width: 20, height: 20, speed: 5 };
 let playerBullets = [];
 let enemies = [];
 let enemyBullets = [];
 let explosions = []; 
 let keys = {};
+let touchKeys = { up: false, down: false, left: false, right: false, shoot: false }; 
 let lastShotTime = 0;
 let diffSpeedMultiplier = 1;
 
@@ -97,7 +91,6 @@ let bossPatternTimer = 0;
 let bossBurstCount = 0;
 let bossBurstInterval = 0;
 
-// Elementos do DOM (Restauração das Variáveis Faltantes)
 const menuScreen = document.getElementById('menu-screen');
 const gameScreen = document.getElementById('game-screen');
 const endScreen = document.getElementById('end-screen');
@@ -123,7 +116,6 @@ const chaosBtn = document.getElementById('chaos-btn');
 const handContainer = document.getElementById('hand-container');
 const handObstacle = document.getElementById('hand-obstacle');
 
-// Variáveis de Interface que estavam quebrando o jogo
 const leaderboardList = document.getElementById('leaderboard-list');
 const saveScoreArea = document.getElementById('save-score-area');
 const playerNameInput = document.getElementById('player-name-input');
@@ -132,14 +124,13 @@ const fakePopup = document.getElementById('fake-popup');
 const popupOverlay = document.getElementById('popup-overlay');
 const popupCloseTop = document.getElementById('popup-close-top');
 const popupCloseBtn = document.getElementById('popup-close-btn');
-const charImg = document.getElementById('character-img'); // Corrigido para bater com o HTML
+const charImg = document.getElementById('character-img');
+const mobileControls = document.getElementById('mobile-controls');
 
-// Áudios
 const bgMusic = document.getElementById('bg-music');
 const bossMusic = document.getElementById('boss-music');
-const bossMusicHeavy = document.getElementById('boss-music-heavy');
+const bossMusicHeavy = document.getElementById('boss-theme-hard.mp3');
 
-// Imagens do Quiz e do Chefe
 const bossNormalImg = new Image(); bossNormalImg.src = 'character-boss-normal.png';
 const bossNormalBrokenImg = new Image(); bossNormalBrokenImg.src = 'character-boss-normal-broken.png';
 const bossMadImg = new Image(); bossMadImg.src = 'character-boss-mad.png';
@@ -154,7 +145,6 @@ let bossY = 30;
 let bossDirection = 1;
 let bossSpeed = 2;
 
-// Injeta CSS do Modo Caos dinamicamente
 const styleSheet = document.createElement("style");
 styleSheet.innerText = `
     @keyframes acidTrip {
@@ -191,25 +181,38 @@ function shuffleArray(array) {
     return array;
 }
 
-// Ativação do Modo Caos
 chaosBtn.addEventListener('click', () => {
     if (isPopupActive || isBossFightActive || isChaosMode) return;
     isChaosMode = true;
     playAudio('som-caos.mp3');
     chaosBtn.classList.add('hidden');
     speechEl.innerText = "🚨 MODO CAOS ATIVADO! PREPARA O SEU CAPACETE QUE O NEGÓCIO FICOU DOIDO!";
-    
     gameBox.classList.add('crazy-spin');
     document.body.classList.add('chaos-background-active');
-    
     bgMusic.playbackRate = 2.0;
-    
     clearInterval(timerInterval);
     startTimer();
 });
 
 window.addEventListener('keydown', (e) => { keys[e.key.toLowerCase()] = true; });
 window.addEventListener('keyup', (e) => { keys[e.key.toLowerCase()] = false; });
+
+function bindTouchBtn(elementId, targetKey) {
+    const el = document.getElementById(elementId);
+    if (!el) return;
+    const activate = (e) => { e.preventDefault(); touchKeys[targetKey] = true; };
+    const deactivate = (e) => { e.preventDefault(); touchKeys[targetKey] = false; };
+    el.addEventListener('touchstart', activate);
+    el.addEventListener('touchend', deactivate);
+    el.addEventListener('mousedown', activate);
+    el.addEventListener('mouseup', deactivate);
+    el.addEventListener('mouseleave', deactivate);
+}
+bindTouchBtn('btn-up', 'up');
+bindTouchBtn('btn-down', 'down');
+bindTouchBtn('btn-left', 'left');
+bindTouchBtn('btn-right', 'right');
+bindTouchBtn('btn-shoot', 'shoot');
 
 handObstacle.addEventListener('click', () => {
     if (isPopupActive) return;
@@ -221,11 +224,15 @@ handObstacle.addEventListener('click', () => {
     }
 });
 
+handObstacle.addEventListener('touchstart', (e) => {
+    e.preventDefault();
+    handObstacle.click();
+});
+
 function triggerFakePopup() {
     if (!canAnswer || isHandActive || isPopupActive || isBossFightActive) return;
     isPopupActive = true;
     playAudio('error.mp3');
-    
     if (fakePopup && popupOverlay) {
         fakePopup.classList.remove('hidden');
         popupOverlay.classList.remove('hidden');
@@ -300,6 +307,7 @@ function showMainMenu() {
     
     quizArea.classList.remove('hidden');
     bossArenaWrapper.classList.add('hidden');
+    if(mobileControls) mobileControls.classList.add('hidden');
     endScreen.classList.add('hidden'); 
     gameScreen.classList.add('hidden'); 
     menuScreen.classList.remove('hidden'); 
@@ -328,6 +336,7 @@ function startGame() {
     gameScreen.classList.remove('hidden');
     quizArea.classList.remove('hidden');
     bossArenaWrapper.classList.add('hidden');
+    if(mobileControls) mobileControls.classList.add('hidden');
     chaosBtn.classList.remove('hidden');
 
     bgMusic.currentTime = 0;
@@ -380,18 +389,14 @@ function checkAnswer() {
     if (playerAnswer === correctAnswer) {
         score += Math.round(10 * scoreMultiplier); scoreEl.innerText = score;
         playAudio('correct.mp3');
-        
-        if(charImg) charImg.src = 'character-laughing.png';
+        if(charImg) charImg.src = 'character-laughing.png'; // Atualizado
         speechEl.innerText = "Olha só, acertou! Não fez mais que sua obrigação.";
-        
         nextStepSequence();
     } else {
         playAudio('wrong.mp3');
         causeOfDeath = "wrongAnswer";
-        
-        if(charImg) charImg.src = 'character-annoyed.png';
+        if(charImg) charImg.src = 'character-annoyed.png'; // Atualizado
         speechEl.innerText = "Caramba, que resposta horrível! Errou feio.";
-        
         handleLoss();
     }
 }
@@ -437,13 +442,14 @@ function startBossFightTransition() {
     else if (currentDifficulty === 'medium') diffSpeedMultiplier = 1.1;
     else if (currentDifficulty === 'hard') diffSpeedMultiplier = 1.6;
 
-    player.x = 290; player.y = 340;
+    player.x = 280; player.y = 340;
     playerBullets = []; enemyBullets = []; enemies = []; explosions = [];
     bossX = 230; bossY = 30; bossDyingY = 30;
     isInvincible = false;
 
     quizArea.classList.add('hidden');
     bossArenaWrapper.classList.remove('hidden');
+    if(mobileControls) mobileControls.classList.remove('hidden'); 
     chaosBtn.classList.add('hidden');
 
     timerLabel.innerText = "Onda:";
@@ -527,7 +533,6 @@ function initBossEntity(phase) {
 function updateBossHpBar() {
     const pct = Math.max(0, (bossHp / maxBossHp) * 100);
     document.getElementById('boss-hp-bar').style.width = `${pct}%`;
-    
     if (bossPhase === 0) {
         document.getElementById('boss-hp-text').innerText = `LIMPE AS FORMAS (ONDA ${currentWave}/6)`;
     } else {
@@ -582,12 +587,12 @@ function updateBfLogic() {
         if (invincibleTimer <= 0) isInvincible = false;
     }
 
-    if (keys['w'] || keys['arrowup']) player.y = Math.max(120, player.y - player.speed);
-    if (keys['s'] || keys['arrowdown']) player.y = Math.min(370, player.y + player.speed);
-    if (keys['a'] || keys['arrowleft']) player.x = Math.max(0, player.x - player.speed);
-    if (keys['d'] || keys['arrowright']) player.x = Math.min(580, player.x + player.speed);
+    if (keys['w'] || keys['arrowup'] || touchKeys.up) player.y = Math.max(120, player.y - player.speed);
+    if (keys['s'] || keys['arrowdown'] || touchKeys.down) player.y = Math.min(370, player.y + player.speed);
+    if (keys['a'] || keys['arrowleft'] || touchKeys.left) player.x = Math.max(0, player.x - player.speed);
+    if (keys['d'] || keys['arrowright'] || touchKeys.right) player.x = Math.min(580, player.x + player.speed);
 
-    if (keys[' '] || keys['spacebar']) {
+    if (keys[' '] || keys['spacebar'] || touchKeys.shoot) {
         let now = Date.now();
         if (now - lastShotTime > 120) { 
             playerBullets.push({ x: player.x + 8, y: player.y - 5, speed: 9 });
@@ -678,7 +683,6 @@ function updateBfLogic() {
             if (bossPatternTimer % fireRate === 0) {
                 let textOptions = ["EULER", "ARESTA", "FACES", "PRISMA", "CUBO"];
                 let randTxt = textOptions[Math.floor(Math.random() * textOptions.length)];
-                
                 enemyBullets.push({ x: bossX + 20, y: originY, speedY: 3.5 * diffSpeedMultiplier, speedX: 0, txt: randTxt });
                 enemyBullets.push({ x: bossX + 70, y: originY, speedY: 3.5 * diffSpeedMultiplier, speedX: 0, txt: randTxt });
                 enemyBullets.push({ x: bossX + 120, y: originY, speedY: 3.5 * diffSpeedMultiplier, speedX: 0, txt: randTxt });
@@ -833,7 +837,6 @@ function renderBfGraphics() {
             let row = Math.floor(exp.currentFrame / EXPLOSION_COLS);
             let srcX = col * singleFrameWidth;
             let srcY = row * singleFrameHeight;
-
             ctx.imageSmoothingEnabled = false; 
             ctx.drawImage(explosionImg, srcX, srcY, singleFrameWidth, singleFrameHeight, exp.x, exp.y, exp.size, exp.size);
         }
@@ -883,11 +886,9 @@ function checkCollision(rect1, rect2) {
 
 function playerHit() {
     if (isInvincible || isDyingSequence) return;
-
     playAudio('player-damage.mp3');
     lives--;
     updateLivesDisplay();
-    
     if (lives <= 0) {
         causeOfDeath = "bulletHell";
         endGame();
@@ -900,7 +901,8 @@ function playerHit() {
 
 function triggerDyingSequence() {
     isDyingSequence = true;
-    bossMusicHeavy.pause(); 
+    const heavyBgm = document.getElementById('boss-music-heavy');
+    if(heavyBgm) heavyBgm.pause();
     enemyBullets = [];
     playerBullets = [];
     gameBox.classList.add('crazy-spin');
@@ -949,18 +951,23 @@ function endGame() {
     document.body.classList.remove('chaos-background-active');
 
     bgMusic.pause(); bgMusic.playbackRate = 1.0;
-    bossMusic.pause(); bossMusicHeavy.pause(); 
+    bossMusic.pause(); 
+    const heavyBgm = document.getElementById('boss-music-heavy');
+    if(heavyBgm) heavyBgm.pause();
 
     gameScreen.classList.add('hidden');
     endScreen.classList.remove('hidden');
-    finalScoreEl.innerText = score;
+    
+    // CORREÇÃO CRÍTICA: Exibe exatamente a pontuação guardada na variável global "score"
+    finalScoreEl.innerText = score; 
+    
     if(handContainer) handContainer.classList.add('hidden');
+    if(mobileControls) mobileControls.classList.add('hidden'); 
     isHandActive = false;
 
     if (lives <= 0) {
         playAudio('wrong.mp3');
         endTitleEl.innerText = "💀 GAME OVER";
-        
         let messagesPool = deathMessages[causeOfDeath] || deathMessages.wrongAnswer;
         let randomIndex = Math.floor(Math.random() * messagesPool.length);
         endMessageEl.innerText = messagesPool[randomIndex];
