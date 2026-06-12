@@ -2,7 +2,7 @@
 <html lang="pt-BR">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>The Ultimate Geometry Nightmare</title>
     <link rel="stylesheet" href="style.css">
 </head>
@@ -27,48 +27,56 @@
             </div>
             <div class="popup-body">
                 <p>O driver "GeometriaEspacial.dll" parou de responder inesperadamente.</p>
-                <p>Deseja reiniciar o cérebro do usuário para corrigir?</p>
-                <button id="popup-close-btn" class="popup-btn">Cancelar</button>
+                <p>Seus pontos acumulados correm risco de corrupção imediata.</p>
+                <button id="popup-close-btn" class="popup-btn">Ok (Tentar Recuperar)</button>
             </div>
         </div>
+        <div id="popup-overlay" class="popup-overlay hidden"></div>
 
         <div id="menu-screen" class="screen">
-            <h1>📐 Cap 4: Figuras Geométricas Espaciais</h1>
-            <p>Escolha sua dificuldade para iniciar o desafio:</p>
+            <h1>📐 The Ultimate Geometry Nightmare 💀</h1>
+            <p class="subtitle">Capítulo 4: Prismas, Pirâmides e Corpos Redondos</p>
             
-            <div class="difficulty-selection">
-                <button class="diff-btn easy" data-diff="easy">Fácil (1x Pontos)</button>
-                <button class="diff-btn medium" data-diff="medium">Médio (1.5x Pontos)</button>
-                <button class="diff-btn hard" data-diff="hard">Difícil (2x Pontos)</button>
+            <div class="leaderboard">
+                <h3>🏆 Recordes da Galera</h3>
+                <ul id="leaderboard-list">
+                    <li>Carregando...</li>
+                </ul>
             </div>
-            
-            <div class="leaderboard-box">
-                <h3>🏆 MAIORES PONTUAÇÕES 🏆</h3>
-                <ol id="leaderboard-list">
-                    </ol>
+
+            <p style="margin-top:20px; font-weight:bold; color:#ff4757;">Escolha a Dificuldade para Iniciar:</p>
+            <div class="difficulty-selection">
+                <button class="diff-btn easy" data-diff="easy">Fácil (Tempo + Longo)</button>
+                <button class="diff-btn medium" data-diff="medium">Médio (Padrão)</button>
+                <button class="diff-btn hard" data-diff="hard">Difícil (Insano!)</button>
             </div>
         </div>
 
         <div id="game-screen" class="screen hidden">
             <div class="hud">
-                <div class="score-board">Pontos: <span id="score">0</span></div>
-                <div class="lives-board">Vidas: <span id="lives">❤️❤️❤️</span></div>
-                <div class="timer-board"><span id="timer-label">Tempo:</span> <span id="timer">15</span><span id="timer-unit">s</span></div>
+                <div class="hud-item">📊 Pontos: <span id="score">0</span></div>
+                <div class="hud-item" id="lives-container">Vidas: <span id="lives">❤️❤️❤️</span></div>
+                <div class="hud-item timer-box">
+                    <span id="timer-label">Tempo:</span> 
+                    <span id="timer">15</span><span id="timer-unit">s</span>
+                </div>
             </div>
-
-            <button id="chaos-btn">⚠️ NÃO ME APERTE! ⚠️</button>
 
             <div id="quiz-area">
                 <div class="character-area">
-                    <img id="character-img" src="character-idle.png" alt="Character">
-                    <p id="speech-bubble">Acha que sabe tudo do Capítulo 4? Vamos ver.</p>
+                    <div class="speech-bubble" id="speech-bubble">Acha que sabe tudo do Capítulo 4? Vamos ver.</div>
+                    <img id="character-img" class="character-sprite" src="character-idle.png" alt="Personagem">
                 </div>
 
-                <div class="question-area">
-                    <h2 id="question">Carregando pergunta...</h2>
-                    <input type="text" id="answer-input" placeholder="Sua resposta...">
+                <div class="question-container">
+                    <p id="question">Carregando pergunta...</p>
+                </div>
+
+                <div class="input-area">
+                    <input type="text" id="answer-input" placeholder="Digite sua resposta aqui..." autocomplete="off">
                     <button id="submit-btn" class="action-btn">Enviar</button>
                 </div>
+                <button id="chaos-btn" class="chaos-trigger-btn">🔥 ATIVAR MODO CAOS 🔥</button>
             </div>
 
             <div id="boss-arena-wrapper" class="hidden">
@@ -78,6 +86,22 @@
                 </div>
                 <canvas id="boss-canvas" width="600" height="400"></canvas>
                 <p class="controls-hint">Use <b>WASD / Setas</b> para mover • Segure <b>ESPAÇO</b> para atirar</p>
+                
+                <!-- Controles Virtuais para Celular -->
+                <div id="mobile-controls" class="hidden">
+                    <div class="dpad">
+                        <button id="btn-up" class="dpad-btn up">▲</button>
+                        <div class="dpad-row">
+                            <button id="btn-left" class="dpad-btn left">◀</button>
+                            <div class="dpad-center"></div>
+                            <button id="btn-right" class="dpad-btn right">▶</button>
+                        </div>
+                        <button id="btn-down" class="dpad-btn down">▼</button>
+                    </div>
+                    <div class="action-controls">
+                        <button id="btn-shoot" class="shoot-btn">💥<br>ATIRAR</button>
+                    </div>
+                </div>
             </div>
         </div>
 
@@ -89,15 +113,12 @@
             <div id="save-score-area" class="hidden">
                 <p>🎉 NOVO RECORDE! Digite seu nome:</p>
                 <input type="text" id="player-name-input" maxlength="10" placeholder="Seu Nome">
-                <button id="save-score-btn" class="action-btn" style="background-color: #ffcc00; color: black; font-size: 16px; padding: 5px 15px;">Salvar no Placar</button>
+                <button id="save-score-btn" class="action-btn" style="background-color: #ffcc00; color: black; font-size: 16px; padding: 5px 15px;">Salvar no Placar...</button>
             </div>
 
-            <button id="restart-btn" class="action-btn">Voltar ao Menu</button>
+            <button id="restart-btn" class="action-btn" style="margin-top: 25px; background-color: #2ed573;">Voltar ao Menu</button>
         </div>
-
     </div>
-
-    <div id="popup-overlay" class="hidden"></div>
 
     <script src="script.js"></script>
 </body>
