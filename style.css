@@ -260,3 +260,107 @@ body {
     font-size: 12px;
     margin: 6px 0 0 0;
 }
+/* --- ADAPTAÇÕES MOBILE E CONTROLES DE TOQUE --- */
+
+@media (max-width: 768px) {
+    body {
+        overflow: auto;
+        padding: 10px;
+        height: auto;
+        min-height: 100vh;
+    }
+    .game-container {
+        padding: 15px;
+        width: 100%;
+        max-width: 100%;
+    }
+    .hud {
+        font-size: 14px;
+        flex-wrap: wrap;
+        gap: 5px;
+    }
+    .controls-hint {
+        display: none; /* Esconde a instrução de teclado no celular */
+    }
+}
+
+/* Área de controles de toque */
+#mobile-controls {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 15px;
+    padding: 10px;
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 10px;
+    user-select: none;
+    -webkit-user-select: none;
+}
+
+/* Layout do D-Pad (Direcionais) */
+.dpad {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    width: 130px;
+}
+.dpad-row {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    width: 100%;
+}
+.dpad-center {
+    width: 42px;
+    height: 42px;
+    background: #222;
+}
+.dpad-btn {
+    width: 44px;
+    height: 44px;
+    background: #333;
+    color: #fff;
+    border: 2px solid #555;
+    border-radius: 8px;
+    font-size: 18px;
+    font-weight: bold;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    cursor: pointer;
+    touch-action: manipulation;
+}
+.dpad-btn:active {
+    background: #ffcc00;
+    color: #000;
+    border-color: #fff;
+}
+
+/* Botão de Tiro */
+.action-controls {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding-right: 10px;
+}
+.shoot-btn {
+    width: 75px;
+    height: 75px;
+    background: #ff4757;
+    color: white;
+    border: 3px solid #fff;
+    border-radius: 50%;
+    font-size: 13px;
+    font-weight: bold;
+    box-shadow: 0 4px 10px rgba(255, 0, 0, 0.4);
+    cursor: pointer;
+    touch-action: manipulation;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+}
+.shoot-btn:active {
+    background: #ff6b81;
+    transform: scale(0.95);
+}
