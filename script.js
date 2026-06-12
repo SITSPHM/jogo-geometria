@@ -67,6 +67,9 @@ let isWaveTransitionActive = false;
 let transitionText = "";
 let transitionTimer = 0;
 
+let isBossFleeing = false;
+let bossFleeTimer = 0;
+
 let isDyingSequence = false;
 let dyingTimer = 0;
 let bossDyingY = 30;
@@ -135,6 +138,7 @@ const bossNormalImg = new Image(); bossNormalImg.src = 'character-boss-normal.pn
 const bossNormalBrokenImg = new Image(); bossNormalBrokenImg.src = 'character-boss-normal-broken.png';
 const bossMadImg = new Image(); bossMadImg.src = 'character-boss-mad.png';
 const bossMadBrokenImg = new Image(); bossMadBrokenImg.src = 'character-boss-mad-broken.png';
+
 const explosionImg = new Image(); explosionImg.src = 'explosion.png'; 
 const EXPLOSION_COLS = 5;
 const EXPLOSION_ROWS = 5;
@@ -297,6 +301,7 @@ function showMainMenu() {
     isWaveTransitionActive = false;
     isCountdownActive = false;
     isInvincible = false;
+    isBossFleeing = false;
     closeFakePopup();
     
     gameBox.classList.remove('crazy-spin'); 
@@ -319,7 +324,7 @@ function startGame() {
     scoreEl.innerText = score; updateLivesDisplay();
     canAnswer = true; isChaosMode = false; isPopupActive = false; isHandActive = false; isBossFightActive = false;
     isDyingSequence = false; isWhiteFadeActive = false; isWaveTransitionActive = false; isCountdownActive = false;
-    isInvincible = false;
+    isInvincible = false; isBossFleeing = false;
     
     timerLabel.innerText = "Tempo:"; timerUnit.innerText = "s";
     gameBox.classList.remove('crazy-spin');
@@ -445,7 +450,7 @@ function startBossFightTransition() {
     player.x = 280; player.y = 340;
     playerBullets = []; enemyBullets = []; enemies = []; explosions = [];
     bossX = 230; bossY = 30; bossDyingY = 30;
-    isInvincible = false;
+    isInvincible = false; isBossFleeing = false;
 
     quizArea.classList.add('hidden');
     bossArenaWrapper.classList.remove('hidden');
@@ -473,6 +478,10 @@ function triggerWaveTransition(text) {
 }
 
 function spawnWave() {
+    // RESETA O JOGADOR NO LOCAL ORIGINAL EM CADA ROUND/ONDA NOVA
+    player.x = 280;
+    player.y = 340;
+
     enemies = [];
     let count = currentDifficulty === 'hard' ? 8 : currentDifficulty === 'medium' ? 6 : 4;
     
@@ -508,6 +517,7 @@ function addExplosion(x, y, size) {
         x: x, y: y, size: size,
         currentFrame: 0, maxFrames: EXPLOSION_TOTAL_FRAMES, timer: 0
     });
+    playAudio('explosion.mp3'); // TOCA O SOM DA EXPLOSÃO AUTOMATICAMENTE
 }
 
 function initBossEntity(phase) {
@@ -561,6 +571,27 @@ function updateBfLogic() {
             exp.timer = 0;
             if (exp.currentFrame >= exp.maxFrames) explosions.splice(i, 1);
         }
+    }
+
+    // SEQUÊNCIA DE FUGA DO BOSS (FASE 1->2) - INTERROMPE E PAUSA AS DEMAIS ATIVIDADES DO JOGO
+    if (isBossFleeing) {
+        bossFleeTimer++;
+        if (bossFleeTimer < 65) {
+            // Tremer um pouco de um lado para o outro
+            bossX += Math.sin(bossFleeTimer * 2.5) * 4.5;
+        } else {
+            // Sobe rapidamente sumindo da arena
+            bossY -= 8;
+        }
+
+        if (bossY < -140) {
+            isBossFleeing = false;
+            bossPhase = 0;
+            bossY = 30; // Reseta Y para quando ele reaparecer
+            currentWave = 4;
+            triggerWaveTransition("FUGIU LÁ PRA CIMA! PREPARA!");
+        }
+        return; // Retorna cedo simulando a pausa completa do gameplay
     }
 
     if (isCountdownActive) {
@@ -641,12 +672,13 @@ function updateBfLogic() {
                 if (checkCollision(b, { x: e.x, y: e.y, width: 25, height: 25 })) {
                     e.hp--;
                     playerBullets.splice(j, 1);
-                    playAudio('hit-enemy.mp3');
                     if (e.hp <= 0) {
                         addExplosion(e.x - 15, e.y - 15, 60); 
                         enemies.splice(i, 1);
                         score += Math.round(5 * scoreMultiplier);
                         scoreEl.innerText = score;
+                    } else {
+                        playAudio('hit-enemy.mp3');
                     }
                     break;
                 }
@@ -679,11 +711,9 @@ function updateBfLogic() {
         bossPatternTimer++;
         let originY = bossY + 80; 
 
-        // MECÂNICA DE ATAQUE DO CHEFE TOTALMENTE REFEITA (SEM PALAVRAS HORIZONTAIS)
         if (bossAttackPattern === 1) {
             let fireRate = currentDifficulty === 'hard' ? 20 : currentDifficulty === 'medium' ? 35 : 50;
             if (bossPatternTimer % fireRate === 0) {
-                // Barras verticais de plasma de alta precisão
                 enemyBullets.push({ x: bossX + 20, y: originY, speedY: 4 * diffSpeedMultiplier, speedX: 0, width: 10, height: 30, type: 'beam' });
                 enemyBullets.push({ x: bossX + 70, y: originY, speedY: 4 * diffSpeedMultiplier, speedX: 0, width: 10, height: 30, type: 'beam' });
                 enemyBullets.push({ x: bossX + 120, y: originY, speedY: 4 * diffSpeedMultiplier, speedX: 0, width: 10, height: 30, type: 'beam' });
@@ -694,7 +724,6 @@ function updateBfLogic() {
             if (bossBurstCount < 3) {
                 bossBurstInterval++;
                 if (bossBurstInterval % 8 === 0 && bossBurstInterval < 80) { 
-                    // Projéteis esféricos de plasma direcionados com precisão matemática ao jogador
                     let dx = player.x - (bossX + 70);
                     let dy = player.y - originY;
                     let dist = Math.sqrt(dx*dx + dy*dy) || 1;
@@ -719,7 +748,6 @@ function updateBfLogic() {
             }
         }
         else if (bossAttackPattern === 3) {
-            // ATAQUE NOVO: Instancia as Caixas de Alerta Exclamação que explodem em espiral!
             let spawnRate = currentDifficulty === 'hard' ? 35 : currentDifficulty === 'medium' ? 50 : 70;
             if (bossPatternTimer % spawnRate === 0 && bossPatternTimer < 160) {
                 let spawnX = 40 + Math.random() * 500;
@@ -732,7 +760,7 @@ function updateBfLogic() {
                     width: 32,
                     height: 32,
                     type: 'bomb',
-                    timer: bossPhase === 3 ? 55 : 75 // Explode mais rápido na última fase!
+                    timer: bossPhase === 3 ? 55 : 75 
                 });
             }
             if (bossPatternTimer > 200) { 
@@ -741,7 +769,6 @@ function updateBfLogic() {
             }
         }
         else if (bossAttackPattern === 4) {
-            // Chuva Extrema de Barras de Plasma + Caixas surpresa na Fase Final (Heavy Metal Mode)
             if (bossPatternTimer % 10 === 0) {
                 enemyBullets.push({
                     x: Math.random() * 570,
@@ -784,11 +811,11 @@ function updateBfLogic() {
                     bossPhase = 2; 
                 }
                 else if (bossPhase === 2 && bossHp <= 0) {
-                    playAudio('som-caos.mp3');
-                    addExplosion(bossX + 15, bossY + 10, 110);
-                    bossPhase = 0; 
-                    currentWave = 4; 
-                    triggerWaveTransition("FUGIU LÁ PRA CIMA! PREPARA!");
+                    // SE FOR DERROTADO NO PRIMEIRO ENCONTRO, NÃO EXPLODE: ELE FOGE SUBINDO
+                    isBossFleeing = true;
+                    bossFleeTimer = 0;
+                    enemyBullets = [];
+                    playerBullets = [];
                     break;
                 }
                 else if (bossPhase === 3 && bossHp <= 0) {
@@ -807,8 +834,6 @@ function updateBfLogic() {
             eb.timer--;
             eb.y += eb.speedY;
             if (eb.timer <= 0) {
-                // EXPLOSÃO EM ESPIRAL EXPANSIVA
-                playAudio('boss-death.mp3');
                 addExplosion(eb.x - 8, eb.y - 8, 55);
                 
                 let numParticles = currentDifficulty === 'hard' ? 16 : currentDifficulty === 'medium' ? 12 : 8;
@@ -897,10 +922,8 @@ function renderBfGraphics() {
         }
     }
 
-    // RENDERIZAÇÃO INTELIGENTE DOS NOVOS PROJÉTEIS GEOMÉTRICOS
     enemyBullets.forEach(eb => {
         if (eb.type === 'bomb') {
-            // Caixa de Alerta Exclamação Borda Oca Piscante
             ctx.lineWidth = 3;
             ctx.strokeStyle = (Math.floor(eb.timer / 6) % 2 === 0) ? '#ff3838' : '#ffcc00';
             ctx.strokeRect(eb.x, eb.y, eb.width, eb.height);
@@ -912,21 +935,18 @@ function renderBfGraphics() {
             ctx.textAlign = 'left';
         } 
         else if (eb.type === 'particle') {
-            // Projéteis circulares da espiral
             ctx.fillStyle = eb.color || '#ffcc00';
             ctx.beginPath();
             ctx.arc(eb.x, eb.y, eb.width/2, 0, Math.PI*2);
             ctx.fill();
         } 
         else if (eb.type === 'beam') {
-            // Barras verticais de plasma de dupla coloração (Núcleo brilhante)
             ctx.fillStyle = '#ff3838';
             ctx.fillRect(eb.x, eb.y, eb.width, eb.height);
             ctx.fillStyle = '#ffffff';
             ctx.fillRect(eb.x + 2, eb.y, eb.width - 4, eb.height);
         } 
         else if (eb.type === 'plasma') {
-            // Esferas de plasma teleguiadas
             ctx.fillStyle = '#00ffff';
             ctx.beginPath();
             ctx.arc(eb.x, eb.y, eb.width/2, 0, Math.PI*2);
@@ -937,9 +957,19 @@ function renderBfGraphics() {
             ctx.fill();
         } 
         else {
-            // Fallback básico seguro
             ctx.fillStyle = '#ff4757';
             ctx.fillRect(eb.x, eb.y, eb.width || 8, eb.height || 8);
+        }
+    });
+
+    // CORREÇÃO: REDERIZAÇÃO REAL DAS EXPLOSÕES NA TELA DO CANVAS
+    explosions.forEach(exp => {
+        if (explosionImg.complete && explosionImg.naturalWidth > 0) {
+            let col = exp.currentFrame % EXPLOSION_COLS;
+            let row = Math.floor(exp.currentFrame / EXPLOSION_COLS);
+            let sw = explosionImg.naturalWidth / EXPLOSION_COLS;
+            let sh = explosionImg.naturalHeight / EXPLOSION_ROWS;
+            ctx.drawImage(explosionImg, col * sw, row * sh, sw, sh, exp.x, exp.y, exp.size, exp.size);
         }
     });
 
@@ -986,7 +1016,7 @@ function checkCollision(rect1, rect2) {
 }
 
 function playerHit() {
-    if (isInvincible || isDyingSequence) return;
+    if (isInvincible || isDyingSequence || isBossFleeing) return;
     playAudio('player-damage.mp3');
     lives--;
     updateLivesDisplay();
@@ -1011,12 +1041,10 @@ function triggerDyingSequence() {
         dyingTimer++;
         bossDyingY -= 1.4; 
         addExplosion(bossX + Math.random()*100, bossDyingY + Math.random()*50, 65);
-        playAudio('hit-enemy.mp3');
 
         if (dyingTimer >= 35) { 
             clearInterval(dyingInterval);
             addExplosion(bossX - 40, bossDyingY - 40, 220);
-            playAudio('boss-death.mp3');
 
             setTimeout(() => {
                 gameBox.classList.remove('crazy-spin'); 
@@ -1054,7 +1082,6 @@ function endGame() {
     if(bossMusic) bossMusic.pause(); 
     if(bossMusicHeavy) bossMusicHeavy.pause();
 
-    // A CORREÇÃO CRÍTICA DO BUG DA TELA BRANCA AQUI:
     gameScreen.classList.add('hidden');
     endScreen.classList.remove('hidden'); 
     
@@ -1063,6 +1090,7 @@ function endGame() {
     if(handContainer) handContainer.classList.add('hidden');
     if(mobileControls) mobileControls.classList.add('hidden'); 
     isHandActive = false;
+    isBossFleeing = false;
 
     if (lives <= 0) {
         playAudio('wrong.mp3');
