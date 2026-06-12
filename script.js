@@ -54,7 +54,7 @@ let isHandActive = false;
 let causeOfDeath = "wrongAnswer";
 
 // =============================================================================
-//  ESTADO DA BOSS FIGHT E UPGRADES (LOOT Drop System)
+//  ESTADO DA BOSS FIGHT E UPGRADES (Loot Drop System)
 // =============================================================================
 let isBossFightActive = false;
 let bossFightAnimationId = null;
@@ -85,13 +85,16 @@ let bossDyingY = 30;
 let whiteFadeAlpha = 0;
 let isWhiteFadeActive = false;
 
-// Listas de entidades da Arena
-let player = { x: 280, y: 340, width: 18, height: 18, speed: 5.2, activeWeapon: 'normal' };
+// Estado customizado do Jogador e Buffs temporários
+let player = { 
+    x: 280, y: 340, width: 18, height: 18, speed: 5.2, activeWeapon: 'normal',
+    speedBoostLevel: 0, speedBoostEndTime: 0 
+};
 let playerBullets = [];
 let enemies = [];
 let enemyBullets = [];
 let explosions = [];
-let drops = []; // Novo repositório de upgrades derrubados no mapa
+let drops = []; 
 
 let keys = {};
 let touchKeys = { up: false, down: false, left: false, right: false, shoot: false };
@@ -149,10 +152,12 @@ const bgMusic = document.getElementById('bg-music');
 const bossMusic = document.getElementById('boss-music');
 const bossMusicHeavy = document.getElementById('boss-music-heavy');
 
+// Carregamento de Ativos Gráficos
 const bossNormalImg = new Image(); bossNormalImg.src = 'character-boss-normal.png';
 const bossNormalBrokenImg = new Image(); bossNormalBrokenImg.src = 'character-boss-normal-broken.png';
 const bossMadImg = new Image(); bossMadImg.src = 'character-boss-mad.png';
 const bossMadBrokenImg = new Image(); bossMadBrokenImg.src = 'character-boss-mad-broken.png';
+const explosionImg = new Image(); explosionImg.src = 'explosion.png';
 
 let bossX = 230;
 let bossY = 30;
@@ -351,6 +356,7 @@ function startGame() {
     isBossFightActive = false; isDyingSequence = false; isWhiteFadeActive = false;
     isWaveTransitionActive = false; isCountdownActive = false; isInvincible = false;
     isBossFleeing = false; drops = []; player.activeWeapon = 'normal';
+    player.speedBoostLevel = 0; player.speedBoostEndTime = 0;
 
     timerLabel.innerText = "Tempo:"; timerUnit.innerText = "s";
     gameBox.classList.remove('crazy-spin');
@@ -475,14 +481,15 @@ function startBossFightTransition() {
 
     currentWave = 1;
     bossPhase = 0;
-    lives = 3; // Força limite máximo inicial correto de 3 vidas
+    lives = 3; 
     updateLivesDisplay();
 
-    if (currentDifficulty === 'easy')        diffSpeedMultiplier = 0.85; // Levemente buffado no fácil
+    if (currentDifficulty === 'easy')        diffSpeedMultiplier = 0.85; 
     else if (currentDifficulty === 'medium') diffSpeedMultiplier = 1.1;
-    else if (currentDifficulty === 'hard')   diffSpeedMultiplier = 1.35; // Reduzido de 1.6 para ficar viável
+    else if (currentDifficulty === 'hard')   diffSpeedMultiplier = 1.35; 
 
     player.x = 280; player.y = 340; player.activeWeapon = 'normal';
+    player.speedBoostLevel = 0; player.speedBoostEndTime = 0;
     playerBullets = []; enemyBullets = []; enemies = []; explosions = []; drops = [];
     bossX = 230; bossY = 30; bossDyingY = 30;
     isInvincible = false; isBossFleeing = false;
@@ -518,8 +525,14 @@ function updateUpgradeHud() {
     let hud = document.getElementById('upgrade-hud');
     if (!hud) return;
     let label = player.activeWeapon.toUpperCase();
-    hud.innerText = `ARMA ATIVA: [${label}]`;
+    let txt = `ARMA ATIVA: [${label}]`;
     
+    if (player.speedBoostLevel > 0 && player.speedBoostEndTime > Date.now()) {
+        let timeLeftSec = Math.ceil((player.speedBoostEndTime - Date.now()) / 1000);
+        txt += ` | ⚡ VELOCIDADE: Lvl ${player.speedBoostLevel} (${timeLeftSec}s)`;
+    }
+    
+    hud.innerText = txt;
     if (player.activeWeapon === 'normal') hud.style.color = '#ffffff';
     else if (player.activeWeapon === 'shotgun') hud.style.color = '#ffa502';
     else if (player.activeWeapon === 'smg') hud.style.color = '#1e90ff';
@@ -566,8 +579,8 @@ function spawnWave() {
     }
 }
 
-function addExplosion(x, y, size) {
-    explosions.push({ x, y, size, currentFrame: 0, timer: 0 });
+function addExplosion(x, y, size, useSprite = true) {
+    explosions.push({ x, y, size, timer: 0, useSprite });
     playAudio('explosion.mp3');
 }
 
@@ -616,7 +629,10 @@ function bossFightLoop() {
 //  LÓGICA PRINCIPAL DA BATALHA
 // =============================================================================
 function updateBfLogic() {
-    // --- Explosões puras (Apenas círculos expandindo sem arquivo externo) ---
+    // Atualização dinâmica do HUD a cada frame para o contador de velocidade
+    updateUpgradeHud();
+
+    // --- Explosões ---
     for (let i = explosions.length - 1; i >= 0; i--) {
         let exp = explosions[i];
         exp.timer++;
@@ -625,10 +641,20 @@ function updateBfLogic() {
         }
     }
 
+    // --- Controle do Buff de Velocidade Temporário (Stackable) ---
+    if (player.speedBoostEndTime) {
+        if (Date.now() > player.speedBoostEndTime) {
+            player.speedBoostLevel = 0;
+            player.speedBoostEndTime = 0;
+        }
+    } else {
+        player.speedBoostLevel = 0;
+    }
+
     // --- Movimentação e Coleta dos Loot Drops ---
     for (let i = drops.length - 1; i >= 0; i--) {
         let d = drops[i];
-        d.y += 1.5; // Caem devagar e suavemente
+        d.y += 1.5; 
         
         if (d.y > 410) {
             drops.splice(i, 1);
@@ -637,14 +663,17 @@ function updateBfLogic() {
 
         if (checkCollision(player, d)) {
             if (d.type === 'heart') {
-                if (lives < 3) { // Só consome para reobter se estiver abaixo de 3
+                if (lives < 3) { 
                     lives++;
                     updateLivesDisplay();
                     playAudio('correct.mp3');
                 }
+            } else if (d.type === 'speed') {
+                player.speedBoostLevel = (player.speedBoostLevel || 0) + 1;
+                player.speedBoostEndTime = Date.now() + 30000; // Define/Reseta para 30 segundos
+                playAudio('som-caos.mp3');
             } else {
                 player.activeWeapon = d.type;
-                updateUpgradeHud();
                 playAudio('som-caos.mp3');
             }
             drops.splice(i, 1);
@@ -697,21 +726,27 @@ function updateBfLogic() {
         if (invincibleTimer <= 0) isInvincible = false;
     }
 
-    // --- Movimento do jogador ---
-    let spd = player.speed;
-    if (keys['w'] || keys['arrowup']    || touchKeys.up)    player.y = Math.max(120, player.y - spd);
-    if (keys['s'] || keys['arrowdown']  || touchKeys.down)  player.y = Math.min(370, player.y + spd);
-    if (keys['a'] || keys['arrowleft']  || touchKeys.left)  player.x = Math.max(0,   player.x - spd);
-    if (keys['d'] || keys['arrowright'] || touchKeys.right) player.x = Math.min(580, player.x + spd);
+    // --- Movimento do jogador (Modificado pelo Upgrade de Velocidade) ---
+    let currentSpeed = player.speed + (player.speedBoostLevel * 0.9);
+    if (player.speedBoostLevel > 5) currentSpeed = player.speed + (5 * 0.9); // Cap preventivo de controle do mapa
 
-    // --- Atirar com base nas Armas Adquiridas via Drops ---
+    if (keys['w'] || keys['arrowup']    || touchKeys.up)    player.y = Math.max(120, player.y - currentSpeed);
+    if (keys['s'] || keys['arrowdown']  || touchKeys.down)  player.y = Math.min(370, player.y + currentSpeed);
+    if (keys['a'] || keys['arrowleft']  || touchKeys.left)  player.x = Math.max(0,   player.x - currentSpeed);
+    if (keys['d'] || keys['arrowright'] || touchKeys.right) player.x = Math.min(580, player.x + currentSpeed);
+
+    // --- Atirar com base nas Armas Adquiridas ---
     if (keys[' '] || keys['spacebar'] || touchKeys.shoot) {
         let now = Date.now();
         let fireRate = 160; 
         
-        if (player.activeWeapon === 'smg') fireRate = 55;        // SMG: muito rápido
-        if (player.activeWeapon === 'shotgun') fireRate = 380;   // Shotgun: lento e forte
-        if (player.activeWeapon === 'sniper') fireRate = 650;    // Sniper: cadência pesada
+        if (player.activeWeapon === 'smg') fireRate = 55;        
+        if (player.activeWeapon === 'shotgun') fireRate = 380;   
+        if (player.activeWeapon === 'sniper') fireRate = 650;    
+
+        // Aplicação da melhoria de cadência de tiro do Upgrade de Velocidade
+        let fireRateMultiplier = Math.max(0.35, 1 - (player.speedBoostLevel * 0.14));
+        fireRate = Math.round(fireRate * fireRateMultiplier);
 
         if (now - lastShotTime > fireRate) {
             lastShotTime = now;
@@ -724,19 +759,18 @@ function updateBfLogic() {
                 playerBullets.push({ x: player.x + 7, y: player.y - 5, speedY: -12, speedX: 0, damage: 0.5, width: 4, height: 8 });
             } 
             else if (player.activeWeapon === 'shotgun') {
-                // Multiplas direções, velocidade baixa, dano alto 2
-                playerBullets.push({ x: player.x + 7, y: player.y - 5, speedY: -5.5, speedX: 0, damage: 2, width: 6, height: 10 });
-                playerBullets.push({ x: player.x + 5, y: player.y - 5, speedY: -5.2, speedX: -1.8, damage: 2, width: 6, height: 10 });
-                playerBullets.push({ x: player.x + 9, y: player.y - 5, speedY: -5.2, speedX: 1.8, damage: 2, width: 6, height: 10 });
+                // Doze balanceada: dano reduzido de 2 para 1.2 por projétil
+                playerBullets.push({ x: player.x + 7, y: player.y - 5, speedY: -5.5, speedX: 0, damage: 1.2, width: 6, height: 10 });
+                playerBullets.push({ x: player.x + 5, y: player.y - 5, speedY: -5.2, speedX: -1.8, damage: 1.2, width: 6, height: 10 });
+                playerBullets.push({ x: player.x + 9, y: player.y - 5, speedY: -5.2, speedX: 1.8, damage: 1.2, width: 6, height: 10 });
             } 
             else if (player.activeWeapon === 'sniper') {
-                // Sniper futurística guiada (homing), lento, dano 5
                 playerBullets.push({ x: player.x + 7, y: player.y - 5, speedVal: 7, damage: 5, width: 6, height: 14, isHoming: true, speedX: 0, speedY: -7 });
             }
         }
     }
 
-    // --- Movimento dos Projéteis Aliados (Com Mecânica Sniper Homing) ---
+    // --- Movimento dos Projéteis Aliados ---
     for (let i = playerBullets.length - 1; i >= 0; i--) {
         let b = playerBullets[i];
         
@@ -771,7 +805,7 @@ function updateBfLogic() {
     }
 
     // ==========================================================================
-    //  FASE 0 — ONDAS DE INIMIGOS (Adicionado trigger para drop de loot)
+    //  FASE 0 — ONDAS DE INIMIGOS
     // ==========================================================================
     if (bossPhase === 0) {
         updateBossHpBar();
@@ -792,7 +826,7 @@ function updateBfLogic() {
             }
 
             if (checkCollision(player, { x: e.x, y: e.y, width: 25, height: 25 })) {
-                addExplosion(e.x - 10, e.y - 10, 50);
+                addExplosion(e.x - 10, e.y - 10, 50, true); // Usa explosion.png
                 enemies.splice(i, 1);
                 playerHit();
                 continue;
@@ -805,19 +839,20 @@ function updateBfLogic() {
                     playerBullets.splice(j, 1);
                     
                     if (e.hp <= 0) {
-                        addExplosion(e.x - 15, e.y - 15, 60);
+                        addExplosion(e.x - 15, e.y - 15, 60, true); // Usa explosion.png
                         enemies.splice(i, 1);
                         score += Math.round(5 * scoreMultiplier);
                         scoreEl.innerText = score;
 
-                        // Sistema Aleatório Balanceado de Loot Drops (30% de chance)
-                        if (Math.random() < 0.30) {
+                        // Balanceamento de Loot Drops: Chance reduzida para 15% (Mais difícil)
+                        if (Math.random() < 0.15) {
                             let rng = Math.random();
                             let dropType = 'heart';
-                            if (rng < 0.35) dropType = 'heart';
-                            else if (rng < 0.60) dropType = 'shotgun';
-                            else if (rng < 0.82) dropType = 'smg';
-                            else dropType = 'sniper';
+                            if (rng < 0.30) dropType = 'heart';
+                            else if (rng < 0.65) dropType = 'speed';   // 35% de chance de speed boost
+                            else if (rng < 0.80) dropType = 'shotgun'; // 15% de chance
+                            else if (rng < 0.92) dropType = 'smg';     // 12% de chance
+                            else dropType = 'sniper';                  // 8% de chance
 
                             drops.push({ x: e.x + 4, y: e.y + 4, width: 18, height: 18, type: dropType });
                         }
@@ -845,7 +880,7 @@ function updateBfLogic() {
         }
 
     // ==========================================================================
-    //  PADRÕES DO CHEFE BALANCEADOS
+    //  PADRÕES DO CHEFE
     // ==========================================================================
     } else {
         bossSpeed = (bossPhase === 1 ? 2.0 : bossPhase === 2 ? 3.2 : 5.0) * (diffSpeedMultiplier * 0.85);
@@ -856,7 +891,6 @@ function updateBfLogic() {
         let originY = bossY + 80;
         let originX = bossX + 70;
 
-        // PADRÃO 1 — Raios Retos (Suavizado no Hard para dar Safe Zones)
         if (bossAttackPattern === 1) {
             let fireRate = currentDifficulty === 'hard' ? 28 : currentDifficulty === 'medium' ? 38 : 55;
             let duration = currentDifficulty === 'hard' ? 180 : 220;
@@ -875,7 +909,6 @@ function updateBfLogic() {
             if (bossPatternTimer > duration) { bossAttackPattern = 2; bossPatternTimer = 0; bossBurstCount = 0; }
         }
 
-        // PADRÃO 2 — Plasma Perseguidor (Velocidade e frequência ajustadas de forma justa)
         else if (bossAttackPattern === 2) {
             let maxBursts = currentDifficulty === 'hard' ? 3 : currentDifficulty === 'medium' ? 2 : 1;
             let plasmaInterval = currentDifficulty === 'hard' ? 12 : 16;
@@ -900,7 +933,6 @@ function updateBfLogic() {
             }
         }
 
-        // PADRÃO 3 — Bombas em Espiral Áurea (Removido explosion.png e redesenhado em 4 braços)
         else if (bossAttackPattern === 3) {
             let spawnRate = currentDifficulty === 'hard' ? 50 : currentDifficulty === 'medium' ? 65 : 85;
             let bombTimer = currentDifficulty === 'hard' ? 55 : currentDifficulty === 'medium' ? 70 : 90;
@@ -921,7 +953,6 @@ function updateBfLogic() {
             }
         }
 
-        // PADRÃO 4 — Chuva Suprema (Geométrica e Limpa)
         else if (bossAttackPattern === 4) {
             let beamInterval = currentDifficulty === 'hard' ? 15 : currentDifficulty === 'medium' ? 22 : 35;
             if (bossPatternTimer % beamInterval === 0) {
@@ -935,7 +966,6 @@ function updateBfLogic() {
             if (bossPatternTimer > 200) { bossAttackPattern = 1; bossPatternTimer = 0; }
         }
 
-        // --- Colisão do Boss com tiros aliados ---
         for (let j = playerBullets.length - 1; j >= 0; j--) {
             let b = playerBullets[j];
             if (checkCollision(b, { x: bossX, y: bossY, width: 140, height: 90 })) {
@@ -970,18 +1000,18 @@ function updateBfLogic() {
             eb.y += eb.speedY;
 
             if (eb.timer <= 0) {
-                playAudio('explosion.mp3');
+                // Alerta de bomba: Adiciona explosão limpa (branca transparente, sem sprite)
+                addExplosion(eb.x - 10, eb.y - 10, 45, false);
                 
-                // CRIAÇÃO DA ESPIRAL ÁUREA DINÂMICA (Do centro para fora em 4 direções perpendiculares)
-                let baseAngle = Math.random() * Math.PI; // Rotação inicial aleatória para beleza visual
+                let baseAngle = Math.random() * Math.PI; 
                 for (let arm = 0; arm < 4; arm++) {
-                    let startAngle = baseAngle + (arm * (Math.PI / 2)); // Cima, Baixo, Esquerda, Direita (90° em 90°)
+                    let startAngle = baseAngle + (arm * (Math.PI / 2)); 
                     enemyBullets.push({
                         cx: eb.x + 13, cy: eb.y + 13,
                         x: eb.x + 13,  y: eb.y + 13,
                         radius: 0, angle: startAngle,
-                        radialSpeed: 2.2 * diffSpeedMultiplier, // Expansão do raio para fora
-                        angularSpeed: 0.04,                    // Velocidade angular de rotação do vetor
+                        radialSpeed: 2.2 * diffSpeedMultiplier, 
+                        angularSpeed: 0.04,                    
                         width: 10, height: 10, type: 'spiral_arm',
                         color: arm % 2 === 0 ? '#ff9900' : '#ff4444'
                     });
@@ -991,7 +1021,6 @@ function updateBfLogic() {
             }
         } 
         else if (eb.type === 'spiral_arm') {
-            // Atualiza a posição estritamente em movimento espiral circular harmônico
             eb.radius += eb.radialSpeed;
             eb.angle += eb.angularSpeed;
             eb.x = eb.cx + Math.cos(eb.angle) * eb.radius;
@@ -1002,13 +1031,11 @@ function updateBfLogic() {
             eb.x += eb.speedX;
         }
 
-        // Limpeza de tela
         if (eb.y > 410 || eb.y < -60 || eb.x < -50 || eb.x > 650) {
             enemyBullets.splice(i, 1);
             continue;
         }
 
-        // Validação de Dano
         if (!isInvincible && checkCollision(eb, { x: player.x, y: player.y, width: player.width, height: player.height })) {
             if (eb.type !== 'bomb') { 
                 enemyBullets.splice(i, 1);
@@ -1037,6 +1064,10 @@ function renderBfGraphics() {
         if (d.type === 'heart') {
             ctx.font = '12px sans-serif';
             ctx.fillText('❤️', d.x + d.width/2, d.y + d.height/2);
+        } else if (d.type === 'speed') {
+            ctx.fillStyle = '#fffa65';
+            ctx.font = 'bold 11px monospace';
+            ctx.fillText('⚡', d.x + d.width/2, d.y + d.height/2);
         } else {
             ctx.fillStyle = d.type === 'shotgun' ? '#ffa502' : d.type === 'smg' ? '#1e90ff' : '#9900ff';
             ctx.font = 'bold 9px monospace';
@@ -1044,7 +1075,7 @@ function renderBfGraphics() {
             ctx.fillText(txt, d.x + d.width/2, d.y + d.height/2);
         }
     });
-    ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic'; // Reset padrão de render
+    ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic'; 
 
     // --- Jogador ---
     if (!isInvincible || (Math.floor(blinkTimer / 4) % 2 === 0)) {
@@ -1121,7 +1152,7 @@ function renderBfGraphics() {
         else if (eb.type === 'spiral_arm') {
             ctx.fillStyle = eb.color || '#ffcc00';
             ctx.beginPath(); ctx.arc(eb.x, eb.y, 5, 0, Math.PI * 2); ctx.fill();
-            ctx.fillStyle = '#ffffff'; // Núcleo brilhante da espiral
+            ctx.fillStyle = '#ffffff'; 
             ctx.beginPath(); ctx.arc(eb.x, eb.y, 1.8, 0, Math.PI * 2); ctx.fill();
         } 
         else if (eb.type === 'beam') {
@@ -1138,12 +1169,20 @@ function renderBfGraphics() {
     });
     ctx.lineWidth = 1;
 
-    // --- Efeito Visual Simples de Explosão (Círculos radiantes) ---
+    // --- Efeito Visual Adaptativo de Explosão (Sprite vs Círculos) ---
     explosions.forEach(exp => {
-        ctx.fillStyle = `rgba(255, ${100 + exp.timer * 4}, 0, ${1 - exp.timer / 25})`;
-        ctx.beginPath();
-        ctx.arc(exp.x + exp.size / 2, exp.y + exp.size / 2, (exp.size / 2) * (1 + exp.timer / 20), 0, Math.PI * 2);
-        ctx.fill();
+        if (exp.useSprite && explosionImg.complete && explosionImg.naturalWidth !== 0) {
+            ctx.save();
+            ctx.globalAlpha = Math.max(0, 1 - exp.timer / 25);
+            ctx.drawImage(explosionImg, exp.x, exp.y, exp.size, exp.size);
+            ctx.restore();
+        } else {
+            // Explosão em círculo transparente (usada no gatilho da bomba espiral)
+            ctx.fillStyle = `rgba(255, 255, 255, ${1 - exp.timer / 25})`;
+            ctx.beginPath();
+            ctx.arc(exp.x + exp.size / 2, exp.y + exp.size / 2, (exp.size / 2) * (1 + exp.timer / 20), 0, Math.PI * 2);
+            ctx.fill();
+        }
     });
 
     if (isCountdownActive) {
@@ -1200,10 +1239,10 @@ function triggerDyingSequence() {
 
     let dyingInterval = setInterval(() => {
         dyingTimer++; bossDyingY -= 1.4;
-        addExplosion(bossX + Math.random() * 100, bossDyingY + Math.random() * 50, 65);
+        addExplosion(bossX + Math.random() * 100, bossDyingY + Math.random() * 50, 65, true); // Usa explosion.png
         if (dyingTimer >= 35) {
             clearInterval(dyingInterval);
-            addExplosion(bossX - 40, bossDyingY - 40, 220);
+            addExplosion(bossX - 40, bossDyingY - 40, 220, true); // Grande detonação final
             setTimeout(() => {
                 gameBox.classList.remove('crazy-spin');
                 isWhiteFadeActive = true;
