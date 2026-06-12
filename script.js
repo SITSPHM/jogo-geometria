@@ -25,8 +25,8 @@ const deathMessages = {
         "Resposta totalmente incorreta! Você claramente não estudou nada."
     ],
     bulletHell: [
-        "Que perdedor! Não aguentou nem uns tirinhos e virou poeira!",
-        "Nossa, que noob! Foi obliterado completamente na arena!",
+        "Que perdedor! Não aguentou o turbilhão geométrico e virou poeira!",
+        "Nossa, que noob! Foi obliterado completamente na arena de formas!",
         "Desistiu de viver? Suas vidas sumiram mais rápido que a minha paciência!"
     ]
 };
@@ -76,7 +76,7 @@ let isWhiteFadeActive = false;
 const canvas = document.getElementById('boss-canvas');
 const ctx = canvas.getContext('2d');
 
-let player = { x: 280, y: 340, width: 20, height: 20, speed: 5 };
+let player = { x: 280, y: 340, width: 18, height: 18, speed: 5 };
 let playerBullets = [];
 let enemies = [];
 let enemyBullets = [];
@@ -129,8 +129,6 @@ const mobileControls = document.getElementById('mobile-controls');
 
 const bgMusic = document.getElementById('bg-music');
 const bossMusic = document.getElementById('boss-music');
-
-// FIX DA SELEÇÃO DO ID: Corrigido de 'boss-theme-hard.mp3' para 'boss-music-heavy'
 const bossMusicHeavy = document.getElementById('boss-music-heavy');
 
 const bossNormalImg = new Image(); bossNormalImg.src = 'character-boss-normal.png';
@@ -602,7 +600,7 @@ function updateBfLogic() {
     if (keys[' '] || keys['spacebar'] || touchKeys.shoot) {
         let now = Date.now();
         if (now - lastShotTime > 120) { 
-            playerBullets.push({ x: player.x + 8, y: player.y - 5, speed: 9 });
+            playerBullets.push({ x: player.x + 7, y: player.y - 5, speed: 9 });
             playAudio('laser.mp3');
             lastShotTime = now;
         }
@@ -627,8 +625,7 @@ function updateBfLogic() {
 
             let shootInterval = currentDifficulty === 'hard' ? 1100 : currentDifficulty === 'medium' ? 1700 : 2400;
             if ((e.type === 'cilindro' || e.type === 'esfera') && Date.now() - e.lastShot > shootInterval) {
-                let projectileTxt = e.type === 'esfera' ? "⚫" : "🔸";
-                enemyBullets.push({ x: e.x + 12, y: e.y + 20, speedY: 3 * diffSpeedMultiplier, speedX: 0, txt: projectileTxt });
+                enemyBullets.push({ x: e.x + 12, y: e.y + 20, speedY: 3 * diffSpeedMultiplier, speedX: 0, width: 10, height: 10, type: 'basic' });
                 e.lastShot = Date.now();
             }
 
@@ -682,30 +679,37 @@ function updateBfLogic() {
         bossPatternTimer++;
         let originY = bossY + 80; 
 
-        if (bossPhase === 3 && bossAttackPattern === 3 && bossPatternTimer > 150) {
-            bossAttackPattern = 4; 
-            bossPatternTimer = 0;
-        }
-
+        // MECÂNICA DE ATAQUE DO CHEFE TOTALMENTE REFEITA (SEM PALAVRAS HORIZONTAIS)
         if (bossAttackPattern === 1) {
-            let fireRate = currentDifficulty === 'hard' ? 25 : currentDifficulty === 'medium' ? 40 : 60;
+            let fireRate = currentDifficulty === 'hard' ? 20 : currentDifficulty === 'medium' ? 35 : 50;
             if (bossPatternTimer % fireRate === 0) {
-                let textOptions = ["EULER", "ARESTA", "FACES", "PRISMA", "CUBO"];
-                let randTxt = textOptions[Math.floor(Math.random() * textOptions.length)];
-                enemyBullets.push({ x: bossX + 20, y: originY, speedY: 3.5 * diffSpeedMultiplier, speedX: 0, txt: randTxt });
-                enemyBullets.push({ x: bossX + 70, y: originY, speedY: 3.5 * diffSpeedMultiplier, speedX: 0, txt: randTxt });
-                enemyBullets.push({ x: bossX + 120, y: originY, speedY: 3.5 * diffSpeedMultiplier, speedX: 0, txt: randTxt });
+                // Barras verticais de plasma de alta precisão
+                enemyBullets.push({ x: bossX + 20, y: originY, speedY: 4 * diffSpeedMultiplier, speedX: 0, width: 10, height: 30, type: 'beam' });
+                enemyBullets.push({ x: bossX + 70, y: originY, speedY: 4 * diffSpeedMultiplier, speedX: 0, width: 10, height: 30, type: 'beam' });
+                enemyBullets.push({ x: bossX + 120, y: originY, speedY: 4 * diffSpeedMultiplier, speedX: 0, width: 10, height: 30, type: 'beam' });
             }
-            if (bossPatternTimer > 250) { bossAttackPattern = 2; bossPatternTimer = 0; bossBurstCount = 0; }
+            if (bossPatternTimer > 220) { bossAttackPattern = 2; bossPatternTimer = 0; bossBurstCount = 0; }
         }
         else if (bossAttackPattern === 2) {
             if (bossBurstCount < 3) {
                 bossBurstInterval++;
-                if (bossBurstInterval % 7 === 0 && bossBurstInterval < 90) { 
-                    let targetX = player.x + 4;
-                    enemyBullets.push({ x: targetX, y: originY, speedY: 5.0 * diffSpeedMultiplier, speedX: 0, txt: "GEOMETRIA" });
+                if (bossBurstInterval % 8 === 0 && bossBurstInterval < 80) { 
+                    // Projéteis esféricos de plasma direcionados com precisão matemática ao jogador
+                    let dx = player.x - (bossX + 70);
+                    let dy = player.y - originY;
+                    let dist = Math.sqrt(dx*dx + dy*dy) || 1;
+                    let speed = 5.5 * diffSpeedMultiplier;
+                    enemyBullets.push({
+                        x: bossX + 70,
+                        y: originY,
+                        speedY: (dy / dist) * speed,
+                        speedX: (dx / dist) * speed,
+                        width: 14,
+                        height: 14,
+                        type: 'plasma'
+                    });
                 }
-                if (bossBurstInterval >= 130) { 
+                if (bossBurstInterval >= 110) { 
                     bossBurstCount++;
                     bossBurstInterval = 0;
                 }
@@ -715,28 +719,59 @@ function updateBfLogic() {
             }
         }
         else if (bossAttackPattern === 3) {
-            if (bossPatternTimer % 15 === 0) {
-                enemyBullets.push({ x: bossX + 15, y: originY, speedY: 5 * diffSpeedMultiplier, speedX: 0, txt: "⚠️" });
-                enemyBullets.push({ x: bossX + 65, y: originY, speedY: 5 * diffSpeedMultiplier, speedX: 0, txt: "VÉRTICE" });
-                enemyBullets.push({ x: bossX + 115, y: originY, speedY: 5 * diffSpeedMultiplier, speedX: 0, txt: "⚠️" });
+            // ATAQUE NOVO: Instancia as Caixas de Alerta Exclamação que explodem em espiral!
+            let spawnRate = currentDifficulty === 'hard' ? 35 : currentDifficulty === 'medium' ? 50 : 70;
+            if (bossPatternTimer % spawnRate === 0 && bossPatternTimer < 160) {
+                let spawnX = 40 + Math.random() * 500;
+                let spawnY = 130 + Math.random() * 110; 
+                enemyBullets.push({
+                    x: spawnX,
+                    y: spawnY,
+                    speedX: 0,
+                    speedY: 0.3, 
+                    width: 32,
+                    height: 32,
+                    type: 'bomb',
+                    timer: bossPhase === 3 ? 55 : 75 // Explode mais rápido na última fase!
+                });
             }
-            if (bossPatternTimer > 180) { 
-                bossAttackPattern = 1; 
+            if (bossPatternTimer > 200) { 
+                bossAttackPattern = (bossPhase === 3) ? 4 : 1; 
                 bossPatternTimer = 0; 
             }
         }
         else if (bossAttackPattern === 4) {
-            if (bossPatternTimer % 8 === 0) {
-                let randomColumnX = Math.random() * 560;
-                let randomSpeed = (3 + Math.random() * 4) * diffSpeedMultiplier;
-                enemyBullets.push({ x: randomColumnX, y: originY - 20, speedY: randomSpeed, speedX: 0, txt: "💥💥MATEI💥💥" });
+            // Chuva Extrema de Barras de Plasma + Caixas surpresa na Fase Final (Heavy Metal Mode)
+            if (bossPatternTimer % 10 === 0) {
+                enemyBullets.push({
+                    x: Math.random() * 570,
+                    y: originY - 10,
+                    speedY: (4 + Math.random() * 4) * diffSpeedMultiplier,
+                    speedX: (Math.random() - 0.5) * 2,
+                    width: 8,
+                    height: 22,
+                    type: 'beam'
+                });
             }
-            if (bossPatternTimer > 200) {
+            if (bossPatternTimer % 50 === 0) {
+                enemyBullets.push({
+                    x: player.x + (Math.random() - 0.5) * 120,
+                    y: player.y - 70,
+                    speedX: 0,
+                    speedY: 0,
+                    width: 32,
+                    height: 32,
+                    type: 'bomb',
+                    timer: 45
+                });
+            }
+            if (bossPatternTimer > 220) {
                 bossAttackPattern = 1;
                 bossPatternTimer = 0;
             }
         }
 
+        // Dano no Boss
         for (let j = playerBullets.length - 1; j >= 0; j--) {
             let b = playerBullets[j];
             if (checkCollision(b, { x: bossX, y: bossY, width: 140, height: 90 })) {
@@ -764,12 +799,42 @@ function updateBfLogic() {
         }
     }
 
+    // Movimentação e Processamento dos Projéteis do Inimigo
     for (let i = enemyBullets.length - 1; i >= 0; i--) {
         let eb = enemyBullets[i];
-        eb.y += eb.speedY;
-        eb.x += eb.speedX;
+        
+        if (eb.type === 'bomb') {
+            eb.timer--;
+            eb.y += eb.speedY;
+            if (eb.timer <= 0) {
+                // EXPLOSÃO EM ESPIRAL EXPANSIVA
+                playAudio('boss-death.mp3');
+                addExplosion(eb.x - 8, eb.y - 8, 55);
+                
+                let numParticles = currentDifficulty === 'hard' ? 16 : currentDifficulty === 'medium' ? 12 : 8;
+                let baseAngle = Math.random() * Math.PI; 
+                for (let p = 0; p < numParticles; p++) {
+                    let angle = baseAngle + (p * (Math.PI * 2 / numParticles));
+                    enemyBullets.push({
+                        x: eb.x + 12, 
+                        y: eb.y + 12,
+                        speedX: Math.cos(angle) * 3.6 * diffSpeedMultiplier,
+                        speedY: Math.sin(angle) * 3.6 * diffSpeedMultiplier,
+                        width: 10,
+                        height: 10,
+                        type: 'particle',
+                        color: (p % 2 === 0) ? '#ffcc00' : '#ff3838'
+                    });
+                }
+                enemyBullets.splice(i, 1);
+                continue;
+            }
+        } else {
+            eb.y += eb.speedY;
+            eb.x += eb.speedX;
+        }
 
-        if (eb.y > 400 || eb.x < -40 || eb.x > 640) {
+        if (eb.y > 400 || eb.y < -50 || eb.x < -40 || eb.x > 640) {
             enemyBullets.splice(i, 1);
             continue;
         }
@@ -832,22 +897,49 @@ function renderBfGraphics() {
         }
     }
 
+    // RENDERIZAÇÃO INTELIGENTE DOS NOVOS PROJÉTEIS GEOMÉTRICOS
     enemyBullets.forEach(eb => {
-        ctx.fillStyle = '#ff4757';
-        ctx.font = 'bold 12px Courier New'; 
-        ctx.fillText(eb.txt, eb.x, eb.y);
-    });
-
-    explosions.forEach(exp => {
-        if (explosionImg.complete && explosionImg.naturalWidth !== 0) {
-            let singleFrameWidth = explosionImg.naturalWidth / EXPLOSION_COLS;
-            let singleFrameHeight = explosionImg.naturalHeight / EXPLOSION_ROWS;
-            let col = exp.currentFrame % EXPLOSION_COLS;
-            let row = Math.floor(exp.currentFrame / EXPLOSION_COLS);
-            let srcX = col * singleFrameWidth;
-            let srcY = row * singleFrameHeight;
-            ctx.imageSmoothingEnabled = false; 
-            ctx.drawImage(explosionImg, srcX, srcY, singleFrameWidth, singleFrameHeight, exp.x, exp.y, exp.size, exp.size);
+        if (eb.type === 'bomb') {
+            // Caixa de Alerta Exclamação Borda Oca Piscante
+            ctx.lineWidth = 3;
+            ctx.strokeStyle = (Math.floor(eb.timer / 6) % 2 === 0) ? '#ff3838' : '#ffcc00';
+            ctx.strokeRect(eb.x, eb.y, eb.width, eb.height);
+            
+            ctx.fillStyle = ctx.strokeStyle;
+            ctx.font = 'bold 22px "Courier New"';
+            ctx.textAlign = 'center';
+            ctx.fillText('!', eb.x + eb.width/2, eb.y + eb.height - 8);
+            ctx.textAlign = 'left';
+        } 
+        else if (eb.type === 'particle') {
+            // Projéteis circulares da espiral
+            ctx.fillStyle = eb.color || '#ffcc00';
+            ctx.beginPath();
+            ctx.arc(eb.x, eb.y, eb.width/2, 0, Math.PI*2);
+            ctx.fill();
+        } 
+        else if (eb.type === 'beam') {
+            // Barras verticais de plasma de dupla coloração (Núcleo brilhante)
+            ctx.fillStyle = '#ff3838';
+            ctx.fillRect(eb.x, eb.y, eb.width, eb.height);
+            ctx.fillStyle = '#ffffff';
+            ctx.fillRect(eb.x + 2, eb.y, eb.width - 4, eb.height);
+        } 
+        else if (eb.type === 'plasma') {
+            // Esferas de plasma teleguiadas
+            ctx.fillStyle = '#00ffff';
+            ctx.beginPath();
+            ctx.arc(eb.x, eb.y, eb.width/2, 0, Math.PI*2);
+            ctx.fill();
+            ctx.fillStyle = '#ffffff';
+            ctx.beginPath();
+            ctx.arc(eb.x, eb.y, eb.width/4, 0, Math.PI*2);
+            ctx.fill();
+        } 
+        else {
+            // Fallback básico seguro
+            ctx.fillStyle = '#ff4757';
+            ctx.fillRect(eb.x, eb.y, eb.width || 8, eb.height || 8);
         }
     });
 
@@ -885,8 +977,8 @@ function renderBfGraphics() {
 }
 
 function checkCollision(rect1, rect2) {
-    let r1Width = rect1.width || 4;
-    let r1Height = rect1.height || 10;
+    let r1Width = rect1.width || 8;
+    let r1Height = rect1.height || 8;
     return rect1.x < rect2.x + rect2.width &&
            rect1.x + r1Width > rect2.x &&
            rect1.y < rect2.y + rect2.height &&
@@ -962,9 +1054,9 @@ function endGame() {
     if(bossMusic) bossMusic.pause(); 
     if(bossMusicHeavy) bossMusicHeavy.pause();
 
+    // A CORREÇÃO CRÍTICA DO BUG DA TELA BRANCA AQUI:
     gameScreen.classList.add('hidden');
-    endScreen.remove('hidden'); // Certifica que remove a classe de ocultação
-    endScreen.classList.remove('hidden');
+    endScreen.classList.remove('hidden'); 
     
     finalScoreEl.innerText = score; 
     
