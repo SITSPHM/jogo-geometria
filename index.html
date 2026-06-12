@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>The Ultimate Geometry Nightmare</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+    <audio id="bg-music" src="musica.mp3" loop></audio>
+    <audio id="boss-music" src="boss-theme.mp3" loop></audio>
+    <audio id="boss-music-heavy" src="boss-theme-hard.mp3" loop></audio>
+    
+
+    <div class="game-container" id="game-box">
+        
+        <div id="hand-container" class="hidden">
+            <p class="hand-instruction">🚨 CLIQUE EM MIM PARA ME TIRAR DAQUI! 🚨</p>
+            <img id="hand-obstacle" src="mao-realista.png" alt="Mão Realista">
+        </div>
+
+        <div id="fake-popup" class="popup-box hidden">
+            <div class="popup-header">
+                <span>⚠️ Erro Crítico do Sistema</span>
+                <button id="popup-close-top" class="popup-close-x">X</button>
+            </div>
+            <div class="popup-body">
+                <p>O driver "GeometriaEspacial.dll" parou de responder inesperadamente.</p>
+                <p>Deseja reiniciar o cérebro do usuário para corrigir?</p>
+                <button id="popup-close-btn" class="popup-btn">Cancelar</button>
+            </div>
+        </div>
+
+        <div id="menu-screen" class="screen">
+            <h1>📐 Cap 4: Figuras Geométricas Espaciais</h1>
+            <p>Escolha sua dificuldade para iniciar o desafio:</p>
+            
+            <div class="difficulty-selection">
+                <button class="diff-btn easy" data-diff="easy">Fácil (1x Pontos)</button>
+                <button class="diff-btn medium" data-diff="medium">Médio (1.5x Pontos)</button>
+                <button class="diff-btn hard" data-diff="hard">Difícil (2x Pontos)</button>
+            </div>
+            
+            <div class="leaderboard-box">
+                <h3>🏆 MAIORES PONTUAÇÕES 🏆</h3>
+                <ol id="leaderboard-list">
+                    </ol>
+            </div>
+        </div>
+
+        <div id="game-screen" class="screen hidden">
+            <div class="hud">
+                <div class="score-board">Pontos: <span id="score">0</span></div>
+                <div class="lives-board">Vidas: <span id="lives">❤️❤️❤️</span></div>
+                <div class="timer-board"><span id="timer-label">Tempo:</span> <span id="timer">15</span><span id="timer-unit">s</span></div>
+            </div>
+
+            <button id="chaos-btn">⚠️ NÃO ME APERTE! ⚠️</button>
+
+            <div id="quiz-area">
+                <div class="character-area">
+                    <img id="character-img" src="character-idle.png" alt="Character">
+                    <p id="speech-bubble">Acha que sabe tudo do Capítulo 4? Vamos ver.</p>
+                </div>
+
+                <div class="question-area">
+                    <h2 id="question">Carregando pergunta...</h2>
+                    <input type="text" id="answer-input" placeholder="Sua resposta...">
+                    <button id="submit-btn" class="action-btn">Enviar</button>
+                </div>
+            </div>
+
+            <div id="boss-arena-wrapper" class="hidden">
+                <div id="boss-hp-bar-container">
+                    <div id="boss-hp-bar"></div>
+                    <span id="boss-hp-text">CHEFE: FASE 1</span>
+                </div>
+                <canvas id="boss-canvas" width="600" height="400"></canvas>
+                <p class="controls-hint">Use <b>WASD / Setas</b> para mover • Segure <b>ESPAÇO</b> para atirar</p>
+            </div>
+        </div>
+
+        <div id="end-screen" class="screen hidden">
+            <h1 id="end-title">Fim de Jogo</h1>
+            <p id="end-message">Você terminou o quiz!</p>
+            <div class="final-score">Pontuação Final: <span id="final-score-val">0</span> pontos</div>
+            
+            <div id="save-score-area" class="hidden">
+                <p>🎉 NOVO RECORDE! Digite seu nome:</p>
+                <input type="text" id="player-name-input" maxlength="10" placeholder="Seu Nome">
+                <button id="save-score-btn" class="action-btn" style="background-color: #ffcc00; color: black; font-size: 16px; padding: 5px 15px;">Salvar no Placar</button>
+            </div>
+
+            <button id="restart-btn" class="action-btn">Voltar ao Menu</button>
+        </div>
+
+    </div>
+
+    <div id="popup-overlay" class="hidden"></div>
+
+    <script src="script.js"></script>
+</body>
+</html>
