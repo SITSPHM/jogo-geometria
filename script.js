@@ -129,7 +129,9 @@ const mobileControls = document.getElementById('mobile-controls');
 
 const bgMusic = document.getElementById('bg-music');
 const bossMusic = document.getElementById('boss-music');
-const bossMusicHeavy = document.getElementById('boss-theme-hard.mp3');
+
+// FIX DA SELEÇÃO DO ID: Corrigido de 'boss-theme-hard.mp3' para 'boss-music-heavy'
+const bossMusicHeavy = document.getElementById('boss-music-heavy');
 
 const bossNormalImg = new Image(); bossNormalImg.src = 'character-boss-normal.png';
 const bossNormalBrokenImg = new Image(); bossNormalBrokenImg.src = 'character-boss-normal-broken.png';
@@ -286,9 +288,9 @@ document.querySelectorAll('.diff-btn').forEach(button => {
 });
 
 function showMainMenu() {
-    bgMusic.pause(); bgMusic.currentTime = 0; bgMusic.playbackRate = 1.0;
-    bossMusic.pause(); bossMusic.currentTime = 0;
-    bossMusicHeavy.pause(); bossMusicHeavy.currentTime = 0; 
+    if(bgMusic) { bgMusic.pause(); bgMusic.currentTime = 0; bgMusic.playbackRate = 1.0; }
+    if(bossMusic) { bossMusic.pause(); bossMusic.currentTime = 0; }
+    if(bossMusicHeavy) { bossMusicHeavy.pause(); bossMusicHeavy.currentTime = 0; } 
     cancelAnimationFrame(bossFightAnimationId);
     
     isBossFightActive = false;
@@ -389,13 +391,13 @@ function checkAnswer() {
     if (playerAnswer === correctAnswer) {
         score += Math.round(10 * scoreMultiplier); scoreEl.innerText = score;
         playAudio('correct.mp3');
-        if(charImg) charImg.src = 'character-laughing.png'; // Atualizado
+        if(charImg) charImg.src = 'character-laughing.png'; 
         speechEl.innerText = "Olha só, acertou! Não fez mais que sua obrigação.";
         nextStepSequence();
     } else {
         playAudio('wrong.mp3');
         causeOfDeath = "wrongAnswer";
-        if(charImg) charImg.src = 'character-annoyed.png'; // Atualizado
+        if(charImg) charImg.src = 'character-annoyed.png'; 
         speechEl.innerText = "Caramba, que resposta horrível! Errou feio.";
         handleLoss();
     }
@@ -532,11 +534,16 @@ function initBossEntity(phase) {
 
 function updateBossHpBar() {
     const pct = Math.max(0, (bossHp / maxBossHp) * 100);
-    document.getElementById('boss-hp-bar').style.width = `${pct}%`;
-    if (bossPhase === 0) {
-        document.getElementById('boss-hp-text').innerText = `LIMPE AS FORMAS (ONDA ${currentWave}/6)`;
-    } else {
-        document.getElementById('boss-hp-text').innerText = `CHEFE: FASE ${bossPhase} (${bossHp} HP)`;
+    const hpBar = document.getElementById('boss-hp-bar');
+    if(hpBar) hpBar.style.width = `${pct}%`;
+    
+    const hpText = document.getElementById('boss-hp-text');
+    if(hpText) {
+        if (bossPhase === 0) {
+            hpText.innerText = `LIMPE AS FORMAS (ONDA ${currentWave}/6)`;
+        } else {
+            hpText.innerText = `CHEFE: FASE ${bossPhase} (${bossHp} HP)`;
+        }
     }
 }
 
@@ -656,9 +663,11 @@ function updateBfLogic() {
             } else if (currentWave === 6) {
                 initBossEntity(3);
                 triggerWaveTransition("CONFRONTO FINAL!");
-                bossMusic.pause();
-                bossMusicHeavy.currentTime = 0;
-                bossMusicHeavy.play().catch(e => {});
+                if(bossMusic) bossMusic.pause();
+                if(bossMusicHeavy) {
+                    bossMusicHeavy.currentTime = 0;
+                    bossMusicHeavy.play().catch(e => {});
+                }
             } else {
                 currentWave++;
                 triggerWaveTransition(`ONDA ${currentWave}`);
@@ -901,8 +910,7 @@ function playerHit() {
 
 function triggerDyingSequence() {
     isDyingSequence = true;
-    const heavyBgm = document.getElementById('boss-music-heavy');
-    if(heavyBgm) heavyBgm.pause();
+    if(bossMusicHeavy) bossMusicHeavy.pause();
     enemyBullets = [];
     playerBullets = [];
     gameBox.classList.add('crazy-spin');
@@ -950,15 +958,14 @@ function endGame() {
     gameBox.classList.remove('crazy-spin');
     document.body.classList.remove('chaos-background-active');
 
-    bgMusic.pause(); bgMusic.playbackRate = 1.0;
-    bossMusic.pause(); 
-    const heavyBgm = document.getElementById('boss-music-heavy');
-    if(heavyBgm) heavyBgm.pause();
+    if(bgMusic) { bgMusic.pause(); bgMusic.playbackRate = 1.0; }
+    if(bossMusic) bossMusic.pause(); 
+    if(bossMusicHeavy) bossMusicHeavy.pause();
 
     gameScreen.classList.add('hidden');
+    endScreen.remove('hidden'); // Certifica que remove a classe de ocultação
     endScreen.classList.remove('hidden');
     
-    // CORREÇÃO CRÍTICA: Exibe exatamente a pontuação guardada na variável global "score"
     finalScoreEl.innerText = score; 
     
     if(handContainer) handContainer.classList.add('hidden');
