@@ -364,3 +364,20 @@ body {
     background: #ff6b81;
     transform: scale(0.95);
 }
+
+/* SANS-specific styling */
+.full-black-screen {
+    position: fixed;
+    top: 0; left: 0;
+    width: 100vw; height: 100vh;
+    background: black;
+    z-index: 10000;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    opacity: 0;
+    transition: opacity 3s linear;
+    pointer-events: none;
+}
+.full-black-screen.show { opacity: 1; pointer-events: auto; }
+.full-black-screen img { max-width: 80%; max-height: 80%; }
