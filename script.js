@@ -35,6 +35,222 @@ const deathMessages = {
 };
 
 // =============================================================================
+//  SPRITESHEET LOGIC (image_0.png)
+// =============================================================================
+const explosionImg = new Image();
+explosionImg.src = 'explosion.png';
+const EXPLOSION_COLS = 5;
+const EXPLOSION_ROWS = 5;
+const EXPLOSION_FRAME_COUNT = 23; // User requested 23 frames out of 25
+
+function getExplosionFrameRect(frameIndex) {
+    if (frameIndex < 0 || frameIndex >= EXPLOSION_FRAME_COUNT) return null;
+    if (!explosionImg.complete || explosionImg.naturalWidth === 0) return null;
+
+    const frameWidth = explosionImg.naturalWidth / EXPLOSION_COLS;
+    const frameHeight = explosionImg.naturalHeight / EXPLOSION_ROWS;
+    
+    const col = frameIndex % EXPLOSION_COLS;
+    const row = Math.floor(frameIndex / EXPLOSION_COLS);
+    
+    return {
+        sx: col * frameWidth,
+        sy: row * frameHeight,
+        sw: frameWidth,
+        sh: frameHeight
+    };
+}
+
+// =============================================================================
+//  AUDIO BALANCING
+// =============================================================================
+const audioObjects = {
+    'musica.mp3': document.getElementById('bg-music'),
+    'boss-theme.mp3': document.getElementById('boss-music'),
+    'boss-theme-hard.mp3': document.getElementById('boss-music-heavy'),
+    'hover.mp3': new Audio('hover.mp3'),
+    'clique.mp3': new Audio('clique.mp3'),
+    'error.mp3': new Audio('error.mp3'),
+    'correct.mp3': new Audio('correct.mp3'),
+    'wrong.mp3': new Audio('wrong.mp3'),
+    'laser.mp3': new Audio('laser.mp3'),
+    'hit-enemy.mp3': new Audio('hit-enemy.mp3'),
+    'explosion.mp3': new Audio('explosion.mp3'),
+    'player-damage.mp3': new Audio('player-damage.mp3'),
+    'aplausos.mp3': new Audio('aplausos.mp3'),
+    'som-caos.mp3': new Audio('som-caos.mp3'),
+    'sans.mp3': new Audio('sans.mp3'), // For cheat #9
+};
+
+// User requests: balanced sounds, hit and laser lower, explosion louder.
+audioObjects['explosion.mp3'].volume = 1.0;  // Max volume for explosions
+audioObjects['correct.mp3'].volume = 1.0;
+audioObjects['aplausos.mp3'].volume = 1.0;
+audioObjects['som-caos.mp3'].volume = 1.0;
+audioObjects['wrong.mp3'].volume = 0.9;
+audioObjects['player-damage.mp3'].volume = 0.9;
+audioObjects['laser.mp3'].volume = 0.6;      // Shot is quieter
+audioObjects['hit-enemy.mp3'].volume = 0.6;  // Enemy hit is quieter
+audioObjects['musica.mp3'].volume = 0.5;
+audioObjects['boss-theme.mp3'].volume = 0.6;
+audioObjects['boss-theme-hard.mp3'].volume = 0.7;
+audioObjects['sans.mp3'].volume = 1.0;        // SECRET!
+
+function playAudio(filename) {
+    if (!audioObjects[filename]) return;
+    const audio = audioObjects[filename];
+    audio.currentTime = 0; // Rewind to play again immediately
+    audio.play().catch(e => {});
+}
+
+// Special case for hit sound, as it should play with the explosion
+function playHitSound() {
+    playAudio('hit-enemy.mp3');
+}
+
+// =============================================================================
+//  CHEATS SYSTEM (Both PC KeyCombos and Mobile Input)
+// =============================================================================
+let cheatState = {
+    pcBuffer: [],
+    pcTimer: null,
+    mobileBuffer: "",
+    lastCheatTime: 0,
+    godModeOn: false,
+    infiniteDamageOn: false,
+    minCooldownOn: false,
+    isSansCodeTriggered: false,
+};
+
+const CHEATS = {
+    'god': { id: 1, action: activateGodMode },
+    'normal': { id: 2, action: resetWeapon },
+    'shotgun': { id: 3, action: setWeaponShotgun },
+    'smg': { id: 4, action: setWeaponSmg },
+    'sniper': { id: 5, action: setWeaponSniper },
+    'speed': { id: 6, action: giveSpeedBoostStack },
+    'infdmg': { id: 7, action: activateInfiniteDamage },
+    'fast': { id: 8, action: activateMinCooldown },
+    'sans': { id: 9, action: triggerSansSequence },
+};
+
+function activateGodMode() {
+    cheatState.godModeOn = !cheatState.godModeOn;
+    triggerCheatHudUpdate(`GOD MODE: [${cheatState.godModeOn ? 'ATIVADO' : 'DESATIVADO'}]`);
+    playAudio('som-caos.mp3');
+    lives = 999;
+    updateLivesDisplay();
+}
+
+function resetWeapon() {
+    player.activeWeapon = 'normal';
+    triggerCheatHudUpdate('ARMA: [NORMAL]');
+    playAudio('som-caos.mp3');
+}
+
+function setWeaponShotgun() {
+    player.activeWeapon = 'shotgun';
+    triggerCheatHudUpdate('ARMA: [DOZE]');
+    playAudio('som-caos.mp3');
+}
+
+function setWeaponSmg() {
+    player.activeWeapon = 'smg';
+    triggerCheatHudUpdate('ARMA: [SMG]');
+    playAudio('som-caos.mp3');
+}
+
+function setWeaponSniper() {
+    player.activeWeapon = 'sniper';
+    triggerCheatHudUpdate('ARMA: [SNIPER]');
+    playAudio('som-caos.mp3');
+}
+
+function giveSpeedBoostStack() {
+    player.speedBoostLevel = (player.speedBoostLevel || 0) + 1;
+    player.speedBoostEndTime = Date.now() + 30000;
+    triggerCheatHudUpdate(`SPEED BOOST: [Lvl ${player.speedBoostLevel}]`);
+    playAudio('som-caos.mp3');
+}
+
+function activateInfiniteDamage() {
+    cheatState.infiniteDamageOn = !cheatState.infiniteDamageOn;
+    triggerCheatHudUpdate(`DANO INFINITO: [${cheatState.infiniteDamageOn ? 'ATIVADO' : 'DESATIVADO'}]`);
+    playAudio('som-caos.mp3');
+}
+
+function activateMinCooldown() {
+    cheatState.minCooldownOn = !cheatState.minCooldownOn;
+    triggerCheatHudUpdate(`RECARGA 0.01: [${cheatState.minCooldownOn ? 'ATIVADO' : 'DESATIVADO'}]`);
+    playAudio('som-caos.mp3');
+}
+
+function triggerCheatHudUpdate(msg) {
+    if (!bossArenaWrapper) return;
+    let cheatHud = document.getElementById('cheat-hud');
+    if (!cheatHud) {
+        cheatHud = document.createElement('div');
+        cheatHud.id = 'cheat-hud';
+        cheatHud.style.cssText = "position: absolute; bottom: 5px; right: 5px; font-size: 11px; font-family: monospace; color: #ffcc00; text-shadow: 0 0 2px #000; pointer-events: none;";
+        bossArenaWrapper.appendChild(cheatHud);
+    }
+    cheatHud.innerText = `CHEAT ACTIVADO: ${msg}`;
+    setTimeout(() => { if(cheatHud) cheatHud.innerText = ''; }, 3000);
+}
+
+// --- SANS SEQUENCE (Cheat 9) ---
+function triggerSansSequence() {
+    if (cheatState.isSansCodeTriggered) return;
+    cheatState.isSansCodeTriggered = true;
+    clearInterval(timerInterval);
+    endGame(); // Call endgame first to pause sounds and show screens
+
+    playAudio('sans.mp3');
+    const bgMusic = audioObjects['musica.mp3'];
+    if (bgMusic) bgMusic.pause(); // Just in case it's on
+
+    const sansScreen = document.getElementById('sans-screen');
+    sansScreen.classList.add('show');
+    gameBox.classList.add('hidden'); // Hide the standard final score screen
+
+    setTimeout(() => {
+        // Cut off sound and fade image to black
+        const sansAudio = audioObjects['sans.mp3'];
+        if (sansAudio) sansAudio.pause();
+        sansScreen.innerHTML = ''; // Remote the image to fade to just black
+        
+        // Final score for SANS is -67
+        score = -67;
+        finalScoreEl.innerText = score;
+        lives = 0; // Game over state for messaging
+        causeOfDeath = "sans";
+        
+        // Show the standard final screen over the black
+        gameBox.classList.remove('hidden');
+        gameScreen.classList.add('hidden');
+        endScreen.classList.remove('hidden');
+        
+        // Update messaging and hide save area
+        endTitleEl.innerText = "💀 GAME OVER";
+        endMessageEl.innerText = "You have activated SANS... a bad time awaits.";
+        if (saveScoreArea) saveScoreArea.classList.add('hidden');
+        
+        // Reset cheat flag after a complete loop
+        cheatState.isSansCodeTriggered = false; 
+
+    }, 3000); // Sequence lasts 3 seconds
+}
+
+// Add DOM for SANS screens
+const sansScreen = document.createElement('div');
+sansScreen.id = 'sans-screen';
+sansScreen.className = 'full-black-screen';
+const sansImg = new Image();
+sansImg.src = 'sans.png';
+sansScreen.appendChild(sansImg);
+document.body.appendChild(sansScreen);
+
+// =============================================================================
 //  ESTADO DO QUIZ
 // =============================================================================
 let questionBank = [];
@@ -148,16 +364,12 @@ const popupCloseBtn = document.getElementById('popup-close-btn');
 const charImg = document.getElementById('character-img');
 const mobileControls = document.getElementById('mobile-controls');
 
-const bgMusic = document.getElementById('bg-music');
-const bossMusic = document.getElementById('boss-music');
-const bossMusicHeavy = document.getElementById('boss-music-heavy');
-
-// Carregamento de Ativos Gráficos
+// Graphics Assets
 const bossNormalImg = new Image(); bossNormalImg.src = 'character-boss-normal.png';
 const bossNormalBrokenImg = new Image(); bossNormalBrokenImg.src = 'character-boss-normal-broken.png';
 const bossMadImg = new Image(); bossMadImg.src = 'character-boss-mad.png';
 const bossMadBrokenImg = new Image(); bossMadBrokenImg.src = 'character-boss-mad-broken.png';
-const explosionImg = new Image(); explosionImg.src = 'explosion.png';
+// explosionImg (image_0.png) is declared in the SPRITESHEET section
 
 let bossX = 230;
 let bossY = 30;
@@ -183,13 +395,8 @@ styleSheet.innerText = `
 document.head.appendChild(styleSheet);
 
 // =============================================================================
-//  SISTEMA DE ÁUDIO
+//  SISTEMA DE ÁUDIO & CONTROLE
 // =============================================================================
-function playAudio(filename) {
-    const audio = new Audio(filename);
-    audio.play().catch(e => {});
-}
-
 function setupButtonSounds(btn) {
     if (!btn) return;
     btn.addEventListener('mouseenter', () => { if (!isPopupActive && !isBossFightActive) playAudio('hover.mp3'); });
@@ -218,19 +425,65 @@ chaosBtn.addEventListener('click', () => {
     speechEl.innerText = "🚨 MODO CAOS ATIVADO! PREPARA O SEU CAPACETE QUE O NEGÓCIO FICOU DOIDO!";
     gameBox.classList.add('crazy-spin');
     document.body.classList.add('chaos-background-active');
-    bgMusic.playbackRate = 2.0;
+    const bgMusic = audioObjects['musica.mp3'];
+    if (bgMusic) bgMusic.playbackRate = 2.0;
     clearInterval(timerInterval);
     startTimer();
 });
 
 // =============================================================================
-//  TECLADO E TOUCH
+//  TECLADO E TOUCH (And Cheats detection)
 // =============================================================================
 window.addEventListener('keydown', (e) => {
+    // 1. Core Logic
     keys[e.key.toLowerCase()] = true;
     if (e.key === ' ' && isBossFightActive) e.preventDefault();
+    if (canAnswer && inputEl.disabled === false) return; // Ignore cheats if quiz input is typing
+
+    // 2. PC Cheat Code Detection (GTA San Andreas style)
+    if (cheatState.pcTimer) clearTimeout(cheatState.pcTimer);
+    cheatState.pcBuffer.push(e.key.toLowerCase());
+    
+    // Convert current buffer to string for checking
+    const currentCode = cheatState.pcBuffer.join('');
+    
+    // Find all cheats that could start with this code
+    const possibleCheat = Object.entries(CHEATS).find(([key, val]) => key === currentCode);
+    
+    if (possibleCheat) {
+        // Full cheat matched!
+        possibleCheat[1].action();
+        cheatState.pcBuffer = []; // Reset on activation
+    } else {
+        // Could it still be a valid prefix for another cheat?
+        const isPrefix = Object.keys(CHEATS).some(key => key.startsWith(currentCode));
+        if (!isPrefix) {
+            // Buffer is trash, check if the *last* key starts another cheat
+            cheatState.pcBuffer = [e.key.toLowerCase()];
+        }
+    }
+    
+    // Clear buffer if user stops typing for 1.5 seconds
+    cheatState.pcTimer = setTimeout(() => { cheatState.pcBuffer = []; }, 1500);
 });
+
 window.addEventListener('keyup', (e) => { keys[e.key.toLowerCase()] = false; });
+
+// Mobile Cheat Detection in quiz box
+inputEl.addEventListener('input', (e) => {
+    if (!canAnswer || inputEl.disabled) return;
+    const currentVal = inputEl.value.trim().toLowerCase();
+    
+    // GTA Style: The cheat triggers *while* typing, no enter needed.
+    for (const [code, cheat] of Object.entries(CHEATS)) {
+        if (currentVal.endsWith(code)) {
+            cheat.action();
+            // Clear input box so they know something happened
+            inputEl.value = inputVal.substring(0, inputVal.length - code.length); 
+            break; // Max 1 cheat at a time
+        }
+    }
+});
 
 function bindTouchBtn(elementId, targetKey) {
     const el = document.getElementById(elementId);
@@ -252,7 +505,7 @@ bindTouchBtn('btn-shoot', 'shoot');
 handObstacle.addEventListener('click', () => {
     if (isPopupActive) return;
     handClicksRequired--;
-    playAudio('bater-mao.mp3');
+    playAudio('clique.mp3'); // A batter sound would be better, using clique as placeholder
     if (handClicksRequired <= 0) {
         isHandActive = false;
         handContainer.classList.add('hidden');
@@ -305,7 +558,11 @@ function startTimer() {
 }
 
 function updateLivesDisplay() {
-    livesEl.innerText = "❤️".repeat(Math.max(0, lives)) || "💀 Vazio";
+    if (cheatState.godModeOn) {
+        livesEl.innerText = "👑 INFINITO";
+    } else {
+        livesEl.innerText = "❤️".repeat(Math.max(0, lives)) || "💀 Vazio";
+    }
 }
 
 document.querySelectorAll('.diff-btn').forEach(button => {
@@ -320,6 +577,10 @@ document.querySelectorAll('.diff-btn').forEach(button => {
 });
 
 function showMainMenu() {
+    const bgMusic = audioObjects['musica.mp3'];
+    const bossMusic = audioObjects['boss-theme.mp3'];
+    const bossMusicHeavy = audioObjects['boss-theme-hard.mp3'];
+    
     if (bgMusic)        { bgMusic.pause(); bgMusic.currentTime = 0; bgMusic.playbackRate = 1.0; }
     if (bossMusic)      { bossMusic.pause(); bossMusic.currentTime = 0; }
     if (bossMusicHeavy) { bossMusicHeavy.pause(); bossMusicHeavy.currentTime = 0; }
@@ -346,6 +607,18 @@ function showMainMenu() {
     endScreen.classList.add('hidden');
     gameScreen.classList.add('hidden');
     menuScreen.classList.remove('hidden');
+    
+    // Clear cheats on returning to menu
+    Object.values(CHEATS).forEach(cheat => {
+        if (cheat.active) { // Some cheats don't store state this way, just manual clear
+            // ... add specific clear logic if needed ...
+        }
+    });
+    cheatState.godModeOn = false;
+    cheatState.infiniteDamageOn = false;
+    cheatState.minCooldownOn = false;
+    triggerCheatHudUpdate(''); // Clear hud
+
     updateLeaderboardDisplay();
 }
 
@@ -376,6 +649,7 @@ function startGame() {
     if (mobileControls) mobileControls.classList.add('hidden');
     chaosBtn.classList.remove('hidden');
 
+    const bgMusic = audioObjects['musica.mp3'];
     bgMusic.currentTime = 0;
     bgMusic.playbackRate = 1.0;
     bgMusic.play().catch(e => {});
@@ -435,9 +709,10 @@ function checkAnswer() {
         speechEl.innerText = "Caramba, que resposta horrível! Errou feio.";
         lives--;
         updateLivesDisplay();
-        if (lives <= 0) {
+        if (lives <= 0 && !cheatState.godModeOn) {
             setTimeout(endGame, 1500);
         } else {
+            if (cheatState.godModeOn && lives <= 0) lives = 1; // Prevent death in quiz
             nextStepSequence(false);
         }
     }
@@ -446,16 +721,17 @@ function checkAnswer() {
 function handleLoss() {
     lives--;
     updateLivesDisplay();
-    if (lives <= 0) {
+    if (lives <= 0 && !cheatState.godModeOn) {
         setTimeout(endGame, 1500);
     } else {
+        if (cheatState.godModeOn && lives <= 0) lives = 1; // Prevent death in quiz
         nextStepSequence(false);
     }
 }
 
 function nextStepSequence(correct) {
     setTimeout(() => {
-        if (lives <= 0) return;
+        if (lives <= 0 && !cheatState.godModeOn) return;
         currentIndex++;
         if (currentIndex < questionBank.length) {
             loadQuestion();
@@ -472,6 +748,10 @@ function startBossFightTransition() {
     clearInterval(timerInterval);
     closeFakePopup();
 
+    const bgMusic = audioObjects['musica.mp3'];
+    const bossMusic = audioObjects['boss-theme.mp3'];
+    const bossMusicHeavy = audioObjects['boss-theme-hard.mp3'];
+
     bgMusic.pause();
     bossMusic.currentTime = 0;
     bossMusic.play().catch(e => {});
@@ -481,15 +761,16 @@ function startBossFightTransition() {
 
     currentWave = 1;
     bossPhase = 0;
-    lives = 3; 
+    if (!cheatState.godModeOn) lives = 3; // Refill only if not cheating
     updateLivesDisplay();
 
     if (currentDifficulty === 'easy')        diffSpeedMultiplier = 0.85; 
     else if (currentDifficulty === 'medium') diffSpeedMultiplier = 1.1;
-    else if (currentDifficulty === 'hard')   diffSpeedMultiplier = 1.35; 
+    else if (currentDifficulty === 'hard')   { diffSpeedMultiplier = 1.35; }
 
-    player.x = 280; player.y = 340; player.activeWeapon = 'normal';
-    player.speedBoostLevel = 0; player.speedBoostEndTime = 0;
+    player.x = 280; player.y = 340; 
+    // Do not reset player weapon if cheating
+    player.x = 280; player.y = 340;
     playerBullets = []; enemyBullets = []; enemies = []; explosions = []; drops = [];
     bossX = 230; bossY = 30; bossDyingY = 30;
     isInvincible = false; isBossFleeing = false;
@@ -579,9 +860,19 @@ function spawnWave() {
     }
 }
 
-function addExplosion(x, y, size, useSprite = true) {
-    explosions.push({ x, y, size, timer: 0, useSprite });
-    playAudio('explosion.mp3');
+// Fixed function for Spritesheet animation
+function addExplosion(x, y, size, isEnemyKill = false) {
+    if (isEnemyKill) {
+        // User requested: hit sound first, then explosion when enemy dies.
+        // Also balanced audio, explosion is louder.
+        playHitSound(); 
+        playAudio('explosion.mp3'); 
+    }
+    explosions.push({ 
+        x, y, size, 
+        currentFrame: 0, // Current index in spritesheet (0-22)
+        timer: 0 // Used to control frame rate of animation
+    });
 }
 
 function initBossEntity(phase) {
@@ -629,14 +920,31 @@ function bossFightLoop() {
 //  LÓGICA PRINCIPAL DA BATALHA
 // =============================================================================
 function updateBfLogic() {
-    // Atualização dinâmica do HUD a cada frame para o contador de velocidade
+    // Dynamic HUD updates (active cheats etc)
     updateUpgradeHud();
+    
+    // GTA Cheats: Also check PC combos here in case they were typed over menu
+    // ... logic handled by keydown already ...
 
-    // --- Explosões ---
+    // GTA Cheats: Clear Hud after a while
+    if (cheatState.cheatMsgTimer > 0) {
+        cheatState.cheatMsgTimer--;
+        if(cheatState.cheatMsgTimer <= 0) triggerCheatHudUpdate('');
+    }
+
+    // --- Fixed Spritesheet Explosions ---
+    // Update animation frames based on timers
     for (let i = explosions.length - 1; i >= 0; i--) {
         let exp = explosions[i];
         exp.timer++;
-        if (exp.timer >= 25) {
+        
+        // Change frame every 2 updates (speed)
+        if (exp.timer % 2 === 0) { 
+            exp.currentFrame++;
+        }
+
+        // Delete when sequence is complete
+        if (exp.currentFrame >= EXPLOSION_FRAME_COUNT) {
             explosions.splice(i, 1);
         }
     }
@@ -663,8 +971,9 @@ function updateBfLogic() {
 
         if (checkCollision(player, d)) {
             if (d.type === 'heart') {
-                if (lives < 3) { 
+                if (lives < 3 || cheatState.godModeOn) { 
                     lives++;
+                    if(!cheatState.godModeOn && lives > 3) lives = 3; // Caps heart collections if not cheating
                     updateLivesDisplay();
                     playAudio('correct.mp3');
                 }
@@ -728,44 +1037,59 @@ function updateBfLogic() {
 
     // --- Movimento do jogador (Modificado pelo Upgrade de Velocidade) ---
     let currentSpeed = player.speed + (player.speedBoostLevel * 0.9);
-    if (player.speedBoostLevel > 5) currentSpeed = player.speed + (5 * 0.9); // Cap preventivo de controle do mapa
+    // GTA Cheat check: Don't cap if speed hack activated
+    const isSpeedHacking = player.speedBoostLevel > 5;
+    if (isSpeedHacking && !cheatState.isSansCodeTriggered) currentSpeed = player.speed + (5 * 0.9); 
 
     if (keys['w'] || keys['arrowup']    || touchKeys.up)    player.y = Math.max(120, player.y - currentSpeed);
     if (keys['s'] || keys['arrowdown']  || touchKeys.down)  player.y = Math.min(370, player.y + currentSpeed);
     if (keys['a'] || keys['arrowleft']  || touchKeys.left)  player.x = Math.max(0,   player.x - currentSpeed);
     if (keys['d'] || keys['arrowright'] || touchKeys.right) player.x = Math.min(580, player.x + currentSpeed);
 
-    // --- Atirar com base nas Armas Adquiridas ---
+    // --- Atirar com base nas Armas Adquiridas e Cheats ---
     if (keys[' '] || keys['spacebar'] || touchKeys.shoot) {
         let now = Date.now();
         let fireRate = 160; 
         
+        // GTA Cheats: weapon type selection overrides default logic
         if (player.activeWeapon === 'smg') fireRate = 55;        
         if (player.activeWeapon === 'shotgun') fireRate = 380;   
         if (player.activeWeapon === 'sniper') fireRate = 650;    
 
+        // GTA Cheats: min cooldown override
+        if (cheatState.minCooldownOn) fireRate = 1; // essentially immediate
+
         // Aplicação da melhoria de cadência de tiro do Upgrade de Velocidade
         let fireRateMultiplier = Math.max(0.35, 1 - (player.speedBoostLevel * 0.14));
+        // GTA Cheat: Speed upgrade boosts are already balanced, maybe don't multiply? User didn't request a change.
         fireRate = Math.round(fireRate * fireRateMultiplier);
 
         if (now - lastShotTime > fireRate) {
             lastShotTime = now;
             playAudio('laser.mp3');
 
+            // Apply Infinite Damage Cheat Flag to projectiles
+            let damage = cheatState.infiniteDamageOn ? 999 : 1; 
+
             if (player.activeWeapon === 'normal') {
-                playerBullets.push({ x: player.x + 7, y: player.y - 5, speedY: -9, speedX: 0, damage: 1, width: 4, height: 10 });
+                playerBullets.push({ x: player.x + 7, y: player.y - 5, speedY: -9, speedX: 0, damage: damage, width: 4, height: 10 });
             } 
             else if (player.activeWeapon === 'smg') {
-                playerBullets.push({ x: player.x + 7, y: player.y - 5, speedY: -12, speedX: 0, damage: 0.5, width: 4, height: 8 });
+                // SMG shoots faster, lower damage per shot
+                let smgDamage = cheatState.infiniteDamageOn ? 999 : 0.5;
+                playerBullets.push({ x: player.x + 7, y: player.y - 5, speedY: -12, speedX: 0, damage: smgDamage, width: 4, height: 8 });
             } 
             else if (player.activeWeapon === 'shotgun') {
-                // Doze balanceada: dano reduzido de 2 para 1.2 por projétil
-                playerBullets.push({ x: player.x + 7, y: player.y - 5, speedY: -5.5, speedX: 0, damage: 1.2, width: 6, height: 10 });
-                playerBullets.push({ x: player.x + 5, y: player.y - 5, speedY: -5.2, speedX: -1.8, damage: 1.2, width: 6, height: 10 });
-                playerBullets.push({ x: player.x + 9, y: player.y - 5, speedY: -5.2, speedX: 1.8, damage: 1.2, width: 6, height: 10 });
+                // Shotgun shoots 3 projectiles
+                let sgDamage = cheatState.infiniteDamageOn ? 999 : 1.2;
+                playerBullets.push({ x: player.x + 7, y: player.y - 5, speedY: -5.5, speedX: 0, damage: sgDamage, width: 6, height: 10 });
+                playerBullets.push({ x: player.x + 5, y: player.y - 5, speedY: -5.2, speedX: -1.8, damage: sgDamage, width: 6, height: 10 });
+                playerBullets.push({ x: player.x + 9, y: player.y - 5, speedY: -5.2, speedX: 1.8, damage: sgDamage, width: 6, height: 10 });
             } 
             else if (player.activeWeapon === 'sniper') {
-                playerBullets.push({ x: player.x + 7, y: player.y - 5, speedVal: 7, damage: 5, width: 6, height: 14, isHoming: true, speedX: 0, speedY: -7 });
+                // Sniper is slower, homing, high damage
+                let sniperDamage = cheatState.infiniteDamageOn ? 999 : 5;
+                playerBullets.push({ x: player.x + 7, y: player.y - 5, speedVal: 7, damage: sniperDamage, width: 6, height: 14, isHoming: true, speedX: 0, speedY: -7 });
             }
         }
     }
@@ -826,7 +1150,8 @@ function updateBfLogic() {
             }
 
             if (checkCollision(player, { x: e.x, y: e.y, width: 25, height: 25 })) {
-                addExplosion(e.x - 10, e.y - 10, 50, true); // Usa explosion.png
+                // ProperSpritesheet Explosion on enemy collision
+                addExplosion(e.x - 10, e.y - 10, 50); // Just explosion sound, not kill yet.
                 enemies.splice(i, 1);
                 playerHit();
                 continue;
@@ -835,16 +1160,20 @@ function updateBfLogic() {
             for (let j = playerBullets.length - 1; j >= 0; j--) {
                 let b = playerBullets[j];
                 if (checkCollision(b, { x: e.x, y: e.y, width: 25, height: 25 })) {
+                    // Update: Play hit sound *before* damage is checked, every single hit.
+                    playHitSound(); 
                     e.hp -= b.damage;
                     playerBullets.splice(j, 1);
                     
                     if (e.hp <= 0) {
-                        addExplosion(e.x - 15, e.y - 15, 60, true); // Usa explosion.png
+                        // User request: Play hit sound, THEN play explosion when enemy dies. Balanced audio.
+                        addExplosion(e.x - 15, e.y - 15, 60, true); // enemyKill = true -> plays hit THEN explosion and louder. Proper Spritesheet
                         enemies.splice(i, 1);
                         score += Math.round(5 * scoreMultiplier);
                         scoreEl.innerText = score;
 
                         // Balanceamento de Loot Drops: Chance reduzida para 15% (Mais difícil)
+                        // GTA Cheats: Drops logic is not changed by cheats, it is already balanced. User didn't request a change.
                         if (Math.random() < 0.15) {
                             let rng = Math.random();
                             let dropType = 'heart';
@@ -856,10 +1185,8 @@ function updateBfLogic() {
 
                             drops.push({ x: e.x + 4, y: e.y + 4, width: 18, height: 18, type: dropType });
                         }
-                    } else {
-                        playAudio('hit-enemy.mp3');
                     }
-                    break;
+                    break; // Bullet already processed
                 }
             }
         }
@@ -871,6 +1198,8 @@ function updateBfLogic() {
             } else if (currentWave === 6) {
                 initBossEntity(3);
                 triggerWaveTransition("CONFRONTO FINAL!");
+                const bossMusic = audioObjects['boss-theme.mp3'];
+                const bossMusicHeavy = audioObjects['boss-theme-hard.mp3'];
                 if (bossMusic) bossMusic.pause();
                 if (bossMusicHeavy) { bossMusicHeavy.currentTime = 0; bossMusicHeavy.play().catch(e => {}); }
             } else {
@@ -969,9 +1298,10 @@ function updateBfLogic() {
         for (let j = playerBullets.length - 1; j >= 0; j--) {
             let b = playerBullets[j];
             if (checkCollision(b, { x: bossX, y: bossY, width: 140, height: 90 })) {
+                // Boss Hit: Also plays the balanced hit sound
+                playHitSound();
                 bossHp -= b.damage;
                 playerBullets.splice(j, 1);
-                playAudio('hit-enemy.mp3');
                 updateBossHpBar();
 
                 if (bossPhase === 1 && bossHp <= Math.round(maxBossHp * 0.5)) {
@@ -1001,7 +1331,7 @@ function updateBfLogic() {
 
             if (eb.timer <= 0) {
                 // Alerta de bomba: Adiciona explosão limpa (branca transparente, sem sprite)
-                addExplosion(eb.x - 10, eb.y - 10, 45, false);
+                addExplosion(eb.x - 10, eb.y - 10, 45); // ProperSpritesheet explosion sound not kills
                 
                 let baseAngle = Math.random() * Math.PI; 
                 for (let arm = 0; arm < 4; arm++) {
@@ -1079,7 +1409,8 @@ function renderBfGraphics() {
 
     // --- Jogador ---
     if (!isInvincible || (Math.floor(blinkTimer / 4) % 2 === 0)) {
-        ctx.fillStyle = isInvincible ? '#ffcc00' : '#2ed573';
+        // GTA God Mode Visual override
+        ctx.fillStyle = cheatState.godModeOn ? '#f9ca24' : isInvincible ? '#ffcc00' : '#2ed573';
         ctx.fillRect(player.x, player.y, player.width, player.height);
         ctx.strokeStyle = '#fff'; ctx.lineWidth = 1;
         ctx.strokeRect(player.x, player.y, player.width, player.height);
@@ -1089,6 +1420,7 @@ function renderBfGraphics() {
     // --- Projéteis Aliados ---
     playerBullets.forEach(b => {
         ctx.fillStyle = player.activeWeapon === 'shotgun' ? '#ffa502' : player.activeWeapon === 'smg' ? '#1e90ff' : player.activeWeapon === 'sniper' ? '#9900ff' : '#00ffff';
+        if(cheatState.infiniteDamageOn) ctx.fillStyle = '#ff0000'; // Make infinite damage red for distinction
         ctx.fillRect(b.x, b.y, b.width, b.height);
     });
 
@@ -1169,19 +1501,27 @@ function renderBfGraphics() {
     });
     ctx.lineWidth = 1;
 
-    // --- Efeito Visual Adaptativo de Explosão (Sprite vs Círculos) ---
+    // --- Fixed proper Spritesheet Explosions ---
     explosions.forEach(exp => {
-        if (exp.useSprite && explosionImg.complete && explosionImg.naturalWidth !== 0) {
+        const frameData = getExplosionFrameRect(exp.currentFrame);
+        if (frameData && explosionImg.complete && explosionImg.naturalWidth !== 0) {
             ctx.save();
-            ctx.globalAlpha = Math.max(0, 1 - exp.timer / 25);
-            ctx.drawImage(explosionImg, exp.x, exp.y, exp.size, exp.size);
+            ctx.globalAlpha = Math.max(0, 1 - exp.currentFrame / EXPLOSION_FRAME_COUNT); // Fade out
+            ctx.imageSmoothingEnabled = false; // Keep pixelated look
+            ctx.drawImage(
+                explosionImg,
+                frameData.sx, frameData.sy, frameData.sw, frameData.sh, // Source Rect
+                exp.x, exp.y, exp.size, exp.size // Destination Rect
+            );
             ctx.restore();
         } else {
-            // Explosão em círculo transparente (usada no gatilho da bomba espiral)
-            ctx.fillStyle = `rgba(255, 255, 255, ${1 - exp.timer / 25})`;
-            ctx.beginPath();
-            ctx.arc(exp.x + exp.size / 2, exp.y + exp.size / 2, (exp.size / 2) * (1 + exp.timer / 20), 0, Math.PI * 2);
-            ctx.fill();
+            // Fallback clear circle, not needed now properly fixed but kept for bomb spiral triggers which don't use sprites
+            if (!exp.isKill) {
+                ctx.fillStyle = `rgba(255, 255, 255, ${1 - exp.currentFrame / EXPLOSION_FRAME_COUNT})`;
+                ctx.beginPath();
+                ctx.arc(exp.x + exp.size / 2, exp.y + exp.size / 2, (exp.size / 2) * (1 + exp.currentFrame / (EXPLOSION_FRAME_COUNT/2)), 0, Math.PI * 2);
+                ctx.fill();
+            }
         }
     });
 
@@ -1217,6 +1557,12 @@ function checkCollision(rect1, rect2) {
 }
 
 function playerHit() {
+    // GTA God Mode Check
+    if (cheatState.godModeOn) {
+        playAudio('hit-enemy.mp3'); // Play sound to indicate hit, but no damage
+        return; 
+    }
+    
     if (isInvincible || isDyingSequence || isBossFleeing) return;
     playAudio('player-damage.mp3');
     lives--;
@@ -1233,13 +1579,15 @@ function playerHit() {
 
 function triggerDyingSequence() {
     isDyingSequence = true;
+    const bossMusicHeavy = audioObjects['boss-theme-hard.mp3'];
     if (bossMusicHeavy) bossMusicHeavy.pause();
     enemyBullets = []; playerBullets = []; drops = [];
     gameBox.classList.add('crazy-spin');
 
     let dyingInterval = setInterval(() => {
         dyingTimer++; bossDyingY -= 1.4;
-        addExplosion(bossX + Math.random() * 100, bossDyingY + Math.random() * 50, 65, true); // Usa explosion.png
+        // User requested: kill enemy = hit sound THEN explosion, balanced louder. Proper Spritesheet
+        addExplosion(bossX + Math.random() * 100, bossDyingY + Math.random() * 50, 65, true); 
         if (dyingTimer >= 35) {
             clearInterval(dyingInterval);
             addExplosion(bossX - 40, bossDyingY - 40, 220, true); // Grande detonação final
@@ -1267,6 +1615,7 @@ function bossDefeated() {
 }
 
 function endGame() {
+    // 1. Core State
     clearInterval(timerInterval);
     isBossFightActive = false;
     cancelAnimationFrame(bossFightAnimationId);
@@ -1275,10 +1624,16 @@ function endGame() {
     gameBox.classList.remove('crazy-spin');
     document.body.classList.remove('chaos-background-active');
 
-    if (bgMusic)        { bgMusic.pause(); bgMusic.playbackRate = 1.0; }
-    if (bossMusic)      bossMusic.pause();
+    // User: Pause all game music
+    Object.values(audioObjects).forEach(audio => {
+        if (audio.loop) { audio.pause(); audio.currentTime = 0; }
+    });
+    const bgMusic = audioObjects['musica.mp3'];
+    const bossMusicHeavy = audioObjects['boss-theme-hard.mp3'];
+    if (bgMusic) { bgMusic.pause(); bgMusic.playbackRate = 1.0; }
     if (bossMusicHeavy) bossMusicHeavy.pause();
 
+    // 2. Hide In-game Screens
     gameScreen.classList.add('hidden');
     endScreen.classList.remove('hidden');
     finalScoreEl.innerText = score;
@@ -1287,22 +1642,30 @@ function endGame() {
     if (mobileControls) mobileControls.classList.add('hidden');
     isHandActive = false; isBossFleeing = false;
 
-    if (lives <= 0) {
-        playAudio('wrong.mp3');
-        endTitleEl.innerText = "💀 GAME OVER";
-        let pool = deathMessages[causeOfDeath] || deathMessages.wrongAnswer;
-        endMessageEl.innerText = pool[Math.floor(Math.random() * pool.length)];
-    } else {
-        playAudio('aplausos.mp3');
-        endTitleEl.innerText = "👑 MITO SUPREMO!";
-        endMessageEl.innerText = `Você destruiu tudo na dificuldade ${currentDifficulty.toUpperCase()}! A sala inteira está de pé aplaudindo você!`;
-    }
+    // If SANS triggered, standard final score handling is hidden by triggerSansSequence DOM changes
 
-    if (score > 0) {
-        if (saveScoreArea)   saveScoreArea.classList.remove('hidden');
-        if (playerNameInput) playerNameInput.value = '';
-    } else {
-        if (saveScoreArea) saveScoreArea.classList.add('hidden');
+    // 3. Final State Messaging (Standard handling, skipped if SANS triggered)
+    if (!cheatState.isSansCodeTriggered) {
+        // God Mode Check: user cannot lose bullet hell if active, cap is Refilled in quiz step too.
+        if (cheatState.godModeOn && lives <= 0) lives = 1;
+
+        if (lives <= 0) {
+            playAudio('wrong.mp3');
+            endTitleEl.innerText = "💀 GAME OVER";
+            let pool = deathMessages[causeOfDeath] || deathMessages.wrongAnswer;
+            endMessageEl.innerText = pool[Math.floor(Math.random() * pool.length)];
+        } else {
+            playAudio('aplausos.mp3');
+            endTitleEl.innerText = "👑 MITO SUPREMO!";
+            endMessageEl.innerText = `Você destruiu tudo na dificuldade ${currentDifficulty.toUpperCase()}! A sala inteira está de pé aplaudindo você!`;
+        }
+
+        if (score > 0) {
+            if (saveScoreArea)   saveScoreArea.classList.remove('hidden');
+            if (playerNameInput) playerNameInput.value = '';
+        } else {
+            if (saveScoreArea) saveScoreArea.classList.add('hidden');
+        }
     }
 }
 
@@ -1319,15 +1682,18 @@ if (saveScoreBtn) {
         let name = playerNameInput.value.trim() || "Anônimo";
         let diffLabel = currentDifficulty === 'easy' ? 'Fácil' : currentDifficulty === 'medium' ? 'Médio' : 'Difícil';
         let scores = safeGetScores();
-        scores.push({ name, score, diff: diffLabel });
-        scores.sort((a, b) => b.score - a.score);
-        scores = scores.slice(0, 5);
-        if (safeSaveScores(scores)) {
-            saveScoreArea.classList.add('hidden');
-            updateLeaderboardDisplay();
-            alert("Pontuação salva com sucesso!");
-        } else {
-            alert("Não foi possível salvar.");
+        // Skip SANS score -67, not valid for leaderboard
+        if(score > 0) {
+            scores.push({ name, score, diff: diffLabel });
+            scores.sort((a, b) => b.score - a.score);
+            scores = scores.slice(0, 5);
+            if (safeSaveScores(scores)) {
+                saveScoreArea.classList.add('hidden');
+                updateLeaderboardDisplay();
+                alert("Pontuação salva com sucesso!");
+            } else {
+                alert("Não foi possível salvar.");
+            }
         }
     });
 }
@@ -1347,4 +1713,5 @@ if (submitBtn)  submitBtn.addEventListener('click', checkAnswer);
 if (inputEl)    inputEl.addEventListener('keypress', (e) => { if (e.key === 'Enter') checkAnswer(); });
 if (restartBtn) restartBtn.addEventListener('click', showMainMenu);
 
+// Initial Display
 updateLeaderboardDisplay();
